@@ -1,0 +1,174 @@
+﻿<Window x:Class="Punto_de_Venta.CorteCiegoModal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Corte de Caja"
+        Width="440" Height="580"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Loaded="Window_Loaded">
+
+    <Border Background="{DynamicResource ThemeSurfaceBackground}" 
+            CornerRadius="18" 
+            BorderBrush="{DynamicResource ThemeBorder}" 
+            BorderThickness="1" 
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="25" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.14" />
+        </Border.Effect>
+
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+                <RowDefinition Height="Auto" />
+            </Grid.RowDefinitions>
+
+            <!-- Cabecera -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                <TextBlock Text="Corte de Turno" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" TextAlignment="Center" />
+                <TextBlock Text="Ingresa los billetes de distinto valor" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" TextAlignment="Center" Margin="0,3,0,0" />
+            </StackPanel>
+
+            <!-- Contenido Principal: Desglose de piezas -->
+            <StackPanel Grid.Row="1" VerticalAlignment="Center">
+
+                <!-- Fila 1: $500 y $200 -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Billetes de $500:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
+                        <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="8" Height="38">
+                            <TextBox x:Name="Box500" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" CaretBrush="{DynamicResource ThemeAccent}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="Denomination_TextChanged" KeyDown="Denomination_KeyDown" />
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Billetes de $200:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
+                        <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="8" Height="38">
+                            <TextBox x:Name="Box200" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" CaretBrush="{DynamicResource ThemeAccent}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="Denomination_TextChanged" KeyDown="Denomination_KeyDown" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Fila 2: $100 y $50 -->
+                <Grid Margin="0,0,0,8">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Billetes de $100:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
+                        <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="8" Height="38">
+                            <TextBox x:Name="Box100" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" CaretBrush="{DynamicResource ThemeAccent}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="Denomination_TextChanged" KeyDown="Denomination_KeyDown" />
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Billetes de $50:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
+                        <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="8" Height="38">
+                            <TextBox x:Name="Box50" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" CaretBrush="{DynamicResource ThemeAccent}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="Denomination_TextChanged" KeyDown="Denomination_KeyDown" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Fila 3: $20 y Monedas (monto en $) -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <StackPanel Grid.Column="0">
+                        <TextBlock Text="Billetes de $20:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
+                        <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="8" Height="38">
+                            <TextBox x:Name="Box20" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" CaretBrush="{DynamicResource ThemeAccent}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="Denomination_TextChanged" KeyDown="Denomination_KeyDown" />
+                        </Border>
+                    </StackPanel>
+
+                    <StackPanel Grid.Column="2">
+                        <TextBlock Text="Monedas / Suelto ($):" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
+                        <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="8" Height="38">
+                            <TextBox x:Name="BoxCoins" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" CaretBrush="{DynamicResource ThemeAccent}" Background="Transparent" BorderThickness="0" VerticalContentAlignment="Center" HorizontalContentAlignment="Center" TextChanged="Denomination_TextChanged" KeyDown="Denomination_KeyDown" />
+                        </Border>
+                    </StackPanel>
+                </Grid>
+
+                <!-- Total Calculado en tiempo real -->
+                <TextBlock Text="Total en caja:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
+                <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="10" BorderBrush="{DynamicResource ThemeAccent}" BorderThickness="1.5" Height="44">
+                    <TextBox x:Name="CountedAmountBox"
+                             Text="$0.00"
+                             IsReadOnly="True"
+                             Focusable="False"
+                             FontSize="20"
+                             FontWeight="Bold"
+                             Foreground="{DynamicResource ThemeAccent}"
+                             Background="Transparent"
+                             BorderThickness="0"
+                             VerticalContentAlignment="Center"
+                             HorizontalContentAlignment="Center" />
+                </Border>
+
+                <!-- Panel de Resultado de Auditoría -->
+                <Border x:Name="AuditPanel" Visibility="Collapsed" Background="{DynamicResource ThemeInputBackground}" CornerRadius="12" Margin="0,12,0,0" Padding="12">
+                    <StackPanel>
+                        <Grid Margin="0,2">
+                            <TextBlock Text="Efectivo en Sistema:" Foreground="{DynamicResource ThemeMutedForeground}" FontSize="12" />
+                            <TextBlock x:Name="ExpectedText" HorizontalAlignment="Right" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource ThemeTextForeground}" />
+                        </Grid>
+                        <Grid Margin="0,2">
+                            <TextBlock Text="Efectivo Físico:" Foreground="{DynamicResource ThemeMutedForeground}" FontSize="12" />
+                            <TextBlock x:Name="CountedText" HorizontalAlignment="Right" FontWeight="SemiBold" FontSize="12" Foreground="{DynamicResource ThemeTextForeground}" />
+                        </Grid>
+                        <Separator Margin="0,6" Background="{DynamicResource ThemeBorder}" />
+                        <Grid Margin="0,2">
+                            <TextBlock Text="Diferencia:" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" />
+                            <TextBlock x:Name="DifferenceText" HorizontalAlignment="Right" FontWeight="Bold" FontSize="14" />
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Botones de Acción -->
+            <Grid Grid.Row="2" Margin="0,14,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="12" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Content="Cancelar (Esc)" Height="38" Background="{DynamicResource ThemeInputBackground}" Foreground="{DynamicResource ThemeTextForeground}" FontWeight="SemiBold" Cursor="Hand" Click="Cancel_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <Button x:Name="ActionBtn" Grid.Column="2" Content="Revisar" Height="38" Background="{DynamicResource ThemeAccent}" Foreground="White" FontWeight="SemiBold" Cursor="Hand" Click="Action_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

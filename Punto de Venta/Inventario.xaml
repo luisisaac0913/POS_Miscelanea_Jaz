@@ -1,0 +1,712 @@
+﻿<Window x:Class="Punto_de_Venta.Inventario"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Width="1280" Height="740"
+        MinWidth="1000" MinHeight="640"
+        Icon="/Imagenes/Logo.ico"
+        WindowStartupLocation="CenterOwner"
+        WindowStyle="None" 
+    AllowsTransparency="True"
+    Background="Transparent"
+    PreviewKeyDown="Window_PreviewKeyDown"
+        Loaded="Window_Loaded"
+        UseLayoutRounding="True"
+        TextOptions.TextFormattingMode="Display"
+        TextOptions.TextRenderingMode="ClearType">
+
+    <Window.Resources>
+        <!-- Tokens complementarios -->
+        <SolidColorBrush x:Key="SystemGreen" Color="#34C759" />
+        <SolidColorBrush x:Key="SystemRed" Color="#FF3B30" />
+
+        <!-- Sombras iOS Adaptadas -->
+        <DropShadowEffect x:Key="AppleCardShadow" BlurRadius="20" ShadowDepth="2" Direction="270" Color="#000000" Opacity="0.08" />
+        <DropShadowEffect x:Key="AppleButtonShadow" BlurRadius="10" ShadowDepth="2" Direction="270" Color="#007AFF" Opacity="0.25" />
+
+        <!-- ■ INICIO: Estilos modernos redondeados para los botones de ventana -->
+        <Style x:Key="WinCaptionButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedForeground}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="2,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BorderBtn" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BorderBtn" Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BorderBtn" Property="Background" Value="{DynamicResource ThemeBorder}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="WinCaptionCloseButtonStyle" TargetType="Button">
+            <Setter Property="Width" Value="36" />
+            <Setter Property="Height" Value="28" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedForeground}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Margin" Value="2,0,8,0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="BorderBtn" Background="{TemplateBinding Background}" CornerRadius="8">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="BorderBtn" Property="Background" Value="#E81123" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="BorderBtn" Property="Background" Value="#C40E1E" />
+                                <Setter Property="Foreground" Value="White" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+        <!-- ■ FIN: Estilos modernos redondeados para los botones de ventana -->
+
+        <!-- Contenedor Tarjeta iOS -->
+        <Style x:Key="ProductCardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="20" />
+            <Setter Property="Effect" Value="{StaticResource AppleCardShadow}" />
+        </Style>
+
+        <!-- Campo de Formulario estilo iOS Input Field -->
+        <Style x:Key="FormTextBoxStyle" TargetType="TextBox">
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Padding" Value="12,0" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, -apple-system" />
+            <Setter Property="FontSize" Value="15" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+            <Setter Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+            <Setter Property="CaretBrush" Value="{DynamicResource ThemeAccent}" />
+            <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <Border x:Name="InputBorder" 
+                                Background="{TemplateBinding Background}" 
+                                BorderBrush="{TemplateBinding BorderBrush}" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                CornerRadius="12">
+                            <ScrollViewer x:Name="PART_ContentHost" VerticalAlignment="Center" Margin="{TemplateBinding Padding}" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsFocused" Value="True">
+                                <Setter TargetName="InputBorder" Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
+                                <Setter TargetName="InputBorder" Property="BorderBrush" Value="{DynamicResource ThemeAccent}" />
+                                <Setter TargetName="InputBorder" Property="BorderThickness" Value="1.5" />
+                            </Trigger>
+                            <Trigger Property="IsReadOnly" Value="True">
+                                <Setter TargetName="InputBorder" Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeMutedForeground}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botón Cápsula Secundario iOS -->
+        <Style x:Key="PillButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="42" />
+            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, -apple-system" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="10,0" />
+            <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="BorderBrush" Value="{DynamicResource ThemeAccent}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.4" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botón Primario Añadir (Azul Apple) -->
+        <Style x:Key="PrimaryAddButtonStyle" TargetType="Button" BasedOn="{StaticResource PillButtonStyle}">
+            <Setter Property="Background" Value="{DynamicResource ThemeAccent}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Effect" Value="{StaticResource AppleButtonShadow}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#0062CC" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#004FB3" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#AEAEB2" />
+                                <Setter Property="Effect" Value="{x:Null}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botón Destructivo Borrar (Rojo Apple suave) -->
+        <Style x:Key="DangerDeleteButtonStyle" TargetType="Button" BasedOn="{StaticResource PillButtonStyle}">
+            <Setter Property="Background" Value="#FEE2E2" />
+            <Setter Property="Foreground" Value="{StaticResource SystemRed}" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder" Background="{TemplateBinding Background}" CornerRadius="12" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#FECACA" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="#FCA5A5" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeMutedForeground}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Selector de Pestañas Segmentadas iOS (Todos / Stock Bajo / Agotados) -->
+        <Style x:Key="SegmentTabStyle" TargetType="RadioButton">
+            <Setter Property="Height" Value="38" />
+            <Setter Property="Padding" Value="14,0" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeMutedForeground}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="RadioButton">
+                        <Border x:Name="TabBorder" Background="Transparent" CornerRadius="10" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="TabBorder" Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+                                <Setter TargetName="TabBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="8" ShadowDepth="1" Direction="270" Color="#000000" Opacity="0.12" />
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Botones de Reabastecimiento Rápido (+1, +6, +12, +24) -->
+        <Style x:Key="QuickRestockButtonStyle" TargetType="Button">
+            <Setter Property="Height" Value="34" />
+            <Setter Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeAccent}" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, -apple-system" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="Bold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Validation.ErrorTemplate" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Border" Background="{TemplateBinding Background}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="10">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource ThemeAccent}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.35" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <!-- ■ INICIO: Contenedor con esquinas redondeadas y fondo dinámico -->
+    <Border Background="{DynamicResource ThemeWindowBackground}" 
+            BorderBrush="{DynamicResource ThemeBorder}" 
+            BorderThickness="1" 
+            CornerRadius="18" 
+            ClipToBounds="True">
+
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="38" />
+                <!-- ■ Fila 0: Barra superior moderna -->
+                <RowDefinition Height="*" />
+                <!-- ■ Fila 1: Cuerpo de la ventana -->
+            </Grid.RowDefinitions>
+
+            <!-- ■ INICIO: Barra de título con el texto 'Inventario' en el centro -->
+            <Grid Grid.Row="0" 
+                  Background="Transparent" 
+                  MouseLeftButtonDown="ModernTitleBar_MouseLeftButtonDown">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <!-- Icono de la ventana -->
+                <Image Grid.Column="0" 
+                       Source="/Imagenes/Logo.ico" 
+                       Width="16" Height="16" 
+                       Margin="16,0,0,0" 
+                       VerticalAlignment="Center" 
+                       Opacity="0.75" />
+
+                <!-- ■ Título 'Inventario' centrado en la barra -->
+                <TextBlock Grid.Column="1" 
+                           Text="Inventario" 
+                           FontFamily="Segoe UI Variable, Segoe UI, -apple-system" 
+                           FontSize="12" 
+                           FontWeight="Bold" 
+                           Foreground="{DynamicResource ThemeTextForeground}" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center" 
+                           IsHitTestVisible="False" />
+
+                <!-- ■ Botones modernos a la derecha -->
+                <StackPanel Grid.Column="2" 
+                            Orientation="Horizontal" 
+                            VerticalAlignment="Center" 
+                            Margin="0,0,6,0">
+
+                    <!-- Minimizar -->
+                    <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMinimize_Click" ToolTip="Minimizar">
+                        <Path Data="M 0,0 L 10,0" 
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
+                              StrokeThickness="1.5" 
+                              StrokeStartLineCap="Round" 
+                              StrokeEndLineCap="Round" 
+                              VerticalAlignment="Center" />
+                    </Button>
+
+                    <!-- Maximizar / Restaurar -->
+                    <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMaximize_Click" ToolTip="Maximizar">
+                        <Border Width="10" Height="10" 
+                                BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
+                                BorderThickness="1.5" 
+                                CornerRadius="2.5" />
+                    </Button>
+
+                    <!-- Cerrar -->
+                    <Button Style="{StaticResource WinCaptionCloseButtonStyle}" Click="BtnClose_Click" ToolTip="Cerrar">
+                        <Path Data="M 0,0 L 9,9 M 9,0 L 0,9" 
+                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
+                              StrokeThickness="1.5" 
+                              StrokeStartLineCap="Round" 
+                              StrokeEndLineCap="Round" 
+                              VerticalAlignment="Center" />
+                    </Button>
+                </StackPanel>
+            </Grid>
+            <!-- ■ FIN: Barra de título moderna -->
+
+            <!-- ■ INICIO: Contenido de la ventana dentro de la Fila 1 -->
+            <Grid Grid.Row="1" Margin="32,10,32,24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+
+                <!-- 1. Encabezado iOS con reloj alineado a la derecha -->
+                <Grid Grid.Row="0" Margin="0,0,0,18">
+                    <!-- ■ CAMBIO: Se retiró el TextBlock grande 'Inventario' porque ya se ubica en el centro de la barra superior -->
+                    <Border HorizontalAlignment="Right" Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="16" Padding="14,8" VerticalAlignment="Center">
+                        <TextBlock x:Name="ClockText" Text="6:08 PM" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                    </Border>
+                </Grid>
+
+                <!-- 2. Estructura Principal -->
+                <Grid Grid.Row="1">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2.1*" />
+                        <ColumnDefinition Width="20" />
+                        <ColumnDefinition Width="1*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- Lado Izquierdo: Buscador + Filtros Rápidos + Tabla -->
+                    <Grid Grid.Column="0">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="14" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+
+                        <!-- Barra Superior: Buscador y Selector Segmentado de Stock -->
+                        <Grid Grid.Row="0">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+
+                            <!-- Buscador estilo iOS -->
+                            <Border Grid.Column="0" Height="48" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="14" Padding="14,0">
+                                <Grid VerticalAlignment="Center">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+
+                                    <TextBlock Grid.Column="0" Text="🔍" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" Margin="0,0,10,0" />
+
+                                    <Grid Grid.Column="1">
+                                        <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" Foreground="{DynamicResource ThemeTextForeground}" VerticalContentAlignment="Center" CaretBrush="{DynamicResource ThemeAccent}" TextChanged="SearchBox_TextChanged" AutomationProperties.Name="Buscar por ID, código o nombre" />
+                                        <TextBlock x:Name="SearchPlaceholder" Text="id, código o nombre..." FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" IsHitTestVisible="False" />
+                                    </Grid>
+                                </Grid>
+                            </Border>
+
+                            <!-- Selector Segmentado de Filtros de Stock -->
+                            <Border Grid.Column="2" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="13" Padding="4" Height="48">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton x:Name="FilterAllRadio" Content="Todos" IsChecked="True" Style="{StaticResource SegmentTabStyle}" Click="FilterStock_Click" Tag="All" />
+                                    <RadioButton x:Name="FilterLowRadio" Content="Stock Bajo" Style="{StaticResource SegmentTabStyle}" Click="FilterStock_Click" Tag="Low" />
+                                    <RadioButton x:Name="FilterOutRadio" Content="Agotados" Style="{StaticResource SegmentTabStyle}" Click="FilterStock_Click" Tag="Out" />
+                                </StackPanel>
+                            </Border>
+                        </Grid>
+
+                        <!-- Contenedor DataGrid iOS -->
+                        <Border Grid.Row="2" Style="{StaticResource ProductCardStyle}" Padding="0" ClipToBounds="True">
+                            <DataGrid x:Name="ProductGrid" ItemsSource="{Binding ProductsView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource ThemeBorder}" BorderThickness="0" Background="Transparent" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" RowHeight="52" SelectionUnit="FullRow" SelectionMode="Single" SelectionChanged="ProductGrid_SelectionChanged" EnableRowVirtualization="True" ScrollViewer.VerticalScrollBarVisibility="Auto">
+
+                                <DataGrid.ColumnHeaderStyle>
+                                    <Style TargetType="DataGridColumnHeader">
+                                        <Setter Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource ThemeMutedForeground}" />
+                                        <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI" />
+                                        <Setter Property="FontSize" Value="12" />
+                                        <Setter Property="FontWeight" Value="Bold" />
+                                        <Setter Property="Padding" Value="12,12" />
+                                        <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+                                        <Setter Property="BorderThickness" Value="0,0,0,1" />
+                                    </Style>
+                                </DataGrid.ColumnHeaderStyle>
+
+                                <DataGrid.CellStyle>
+                                    <Style TargetType="DataGridCell">
+                                        <Setter Property="Background" Value="Transparent" />
+                                        <Setter Property="Foreground" Value="{Binding Foreground, RelativeSource={RelativeSource AncestorType=DataGridRow}}" />
+                                        <Setter Property="BorderThickness" Value="0" />
+                                        <Setter Property="Padding" Value="12,4" />
+                                        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+                                        <Setter Property="Template">
+                                            <Setter.Value>
+                                                <ControlTemplate TargetType="DataGridCell">
+                                                    <Border Background="{TemplateBinding Background}" BorderThickness="0" Padding="{TemplateBinding Padding}">
+                                                        <ContentPresenter VerticalAlignment="Center" />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </Setter.Value>
+                                        </Setter>
+                                    </Style>
+                                </DataGrid.CellStyle>
+
+                                <DataGrid.RowStyle>
+                                    <Style TargetType="DataGridRow">
+                                        <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
+                                        <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+                                        <Setter Property="BorderThickness" Value="0" />
+                                        <Style.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                                                <Setter Property="Foreground" Value="{DynamicResource ThemeAccent}" />
+                                            </Trigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </DataGrid.RowStyle>
+
+                                <DataGrid.Columns>
+                                    <DataGridTextColumn Header="ID" Binding="{Binding Id}" Width="50" />
+                                    <DataGridTextColumn Header="CÓDIGO" Binding="{Binding Codigo}" Width="120" />
+                                    <DataGridTextColumn Header="NOMBRE" Binding="{Binding Nombre}" Width="1.2*" />
+
+                                    <!-- Columna Stock con Badges Dinámicos iOS -->
+                                    <DataGridTemplateColumn Header="STOCK" Width="100">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Border CornerRadius="8" Padding="10,4" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding EsStockBajo}" Value="True">
+                                                                    <Setter Property="Background" Value="#FEF3C7" />
+                                                                </DataTrigger>
+                                                                <DataTrigger Binding="{Binding EsStockAgotado}" Value="True">
+                                                                    <Setter Property="Background" Value="#FEE2E2" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+
+                                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                        <TextBlock FontSize="13" FontWeight="Bold">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding EsStockBajo}" Value="True">
+                                                                            <Setter Property="Foreground" Value="#B45309" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding EsStockAgotado}" Value="True">
+                                                                            <Setter Property="Foreground" Value="#DC2626" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                            <Run Text="{Binding Stock}" />
+                                                        </TextBlock>
+
+                                                        <TextBlock FontSize="11" Margin="4,0,0,0" VerticalAlignment="Center">
+                                                            <TextBlock.Style>
+                                                                <Style TargetType="TextBlock">
+                                                                    <Setter Property="Text" Value="" />
+                                                                    <Style.Triggers>
+                                                                        <DataTrigger Binding="{Binding EsStockBajo}" Value="True">
+                                                                            <Setter Property="Text" Value="⚠️" />
+                                                                        </DataTrigger>
+                                                                        <DataTrigger Binding="{Binding EsStockAgotado}" Value="True">
+                                                                            <Setter Property="Text" Value="⛔" />
+                                                                        </DataTrigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </TextBlock.Style>
+                                                        </TextBlock>
+                                                    </StackPanel>
+                                                </Border>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
+
+                                    <DataGridTextColumn Header="CATEGORÍA" Binding="{Binding Categoria}" Width="0.9*" />
+                                    <DataGridTextColumn Header="COSTO" Binding="{Binding Costo, StringFormat={}{0:C2}}" Width="85" />
+                                    <DataGridTextColumn Header="GANANCIA" Binding="{Binding Ganancia, StringFormat={}{0:C2}}" Width="95" />
+                                    <DataGridTextColumn Header="PRECIO FINAL" Binding="{Binding Precio, StringFormat={}{0:C2}}" Width="105">
+                                        <DataGridTextColumn.ElementStyle>
+                                            <Style TargetType="TextBlock">
+                                                <Setter Property="FontWeight" Value="Bold" />
+                                                <Setter Property="Foreground" Value="{DynamicResource ThemeAccent}" />
+                                            </Style>
+                                        </DataGridTextColumn.ElementStyle>
+                                    </DataGridTextColumn>
+                                </DataGrid.Columns>
+                            </DataGrid>
+                        </Border>
+                    </Grid>
+
+                    <!-- Lado Derecho: Formulario de Producto, Reabastecimiento Rápido y Acciones -->
+                    <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel>
+                            <Border Style="{StaticResource ProductCardStyle}" Padding="22,20">
+                                <StackPanel>
+                                    <TextBlock Text="Detalles del Producto" 
+                                               FontFamily="Segoe UI Variable, Segoe UI, -apple-system" 
+                                               FontSize="20" 
+                                               FontWeight="Bold" 
+                                               Foreground="{DynamicResource ThemeTextForeground}" 
+                                               Margin="0,0,0,16" />
+
+                                    <!-- ID y Código -->
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="1.6*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="ID" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
+                                            <TextBox x:Name="ProductIdBox" Style="{StaticResource FormTextBoxStyle}" IsReadOnly="True" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Código" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
+                                            <TextBox x:Name="ProductCodeBox" Style="{StaticResource FormTextBoxStyle}" KeyDown="ProductCodeBox_KeyDown" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Nombre -->
+                                    <TextBlock Text="Nombre" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
+                                    <TextBox x:Name="ProductNameBox" Style="{StaticResource FormTextBoxStyle}" Margin="0,0,0,12" KeyDown="ProductNameBox_KeyDown" />
+
+                                    <!-- Categoría y Stock en fila -->
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1.6*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="1*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Categoría" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
+                                            <TextBox x:Name="ProductCategoryBox" Style="{StaticResource FormTextBoxStyle}" KeyDown="ProductCategoryBox_KeyDown" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Cantidad" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="2,0,0,5" />
+                                            <TextBox x:Name="StockBox" 
+                                                     Style="{StaticResource FormTextBoxStyle}" 
+                                                     Text="0" 
+                                                     HorizontalContentAlignment="Center" 
+                                                     KeyDown="StockBox_KeyDown" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Reabastecimiento Rápido de Stock -->
+                                    <TextBlock Text="Reabastecimiento Rápido" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,6" />
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="6" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="6" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="6" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+                                        <Button Grid.Column="0" Content="+1" Style="{StaticResource QuickRestockButtonStyle}" Click="QuickRestock_Click" Tag="1" />
+                                        <Button Grid.Column="2" Content="+6" Style="{StaticResource QuickRestockButtonStyle}" Click="QuickRestock_Click" Tag="6" />
+                                        <Button Grid.Column="4" Content="+12" Style="{StaticResource QuickRestockButtonStyle}" Click="QuickRestock_Click" Tag="12" />
+                                        <Button Grid.Column="6" Content="+24" Style="{StaticResource QuickRestockButtonStyle}" Click="QuickRestock_Click" Tag="24" />
+                                    </Grid>
+
+                                    <!-- Costo y Ganancia -->
+                                    <Grid Margin="0,0,0,14">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="12" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Grid.Column="0">
+                                            <TextBlock Text="Costo" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
+                                            <TextBox x:Name="ProductCostBox" Style="{StaticResource FormTextBoxStyle}" TextChanged="CostOrMargin_TextChanged" KeyDown="ProductCostBox_KeyDown" />
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="2">
+                                            <TextBlock Text="Ganancia" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
+                                            <TextBox x:Name="ProductMarginBox" Style="{StaticResource FormTextBoxStyle}" TextChanged="CostOrMargin_TextChanged" KeyDown="ProductMarginBox_KeyDown" />
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Casilla Pedir Cantidad -->
+                                    <CheckBox x:Name="AskQuantityCheckBox" 
+                                              Content="Pedir cantidad al cobrar" 
+                                              FontSize="13" 
+                                              Foreground="{DynamicResource ThemeTextForeground}" 
+                                              Margin="2,0,0,16" />
+
+                                    <!-- Botones de Acción: AÑADIR, BORRAR, MODIF. -->
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="1.1*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="8" />
+                                            <ColumnDefinition Width="*" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <Button Grid.Column="0" Content="AÑADIR" Style="{StaticResource PrimaryAddButtonStyle}" Click="AddButton_Click" />
+                                        <Button x:Name="DeleteButton" Grid.Column="2" Content="BORRAR" Style="{StaticResource DangerDeleteButtonStyle}" IsEnabled="False" Click="DeleteButton_Click" />
+                                        <Button x:Name="ModifyButton" Grid.Column="4" Content="MODIF." Style="{StaticResource PillButtonStyle}" IsEnabled="False" Click="ModifyButton_Click" />
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Limpiar Selección -->
+                            <Button Content="Limpiar Selección" 
+                                    Style="{StaticResource PillButtonStyle}" 
+                                    Margin="0,12,0,0" 
+                                    Click="ClearSelectionButton_Click" />
+
+                            <!-- Contador de Productos Widget iOS -->
+                            <Border Style="{StaticResource ProductCardStyle}" Height="46" Padding="16,0" Margin="0,12,0,16" IsHitTestVisible="False">
+                                <TextBlock x:Name="ProductCountText" 
+                                           Text="Cantidad de prod: 0" 
+                                           FontFamily="Segoe UI Variable, Segoe UI" 
+                                           FontSize="14" 
+                                           FontWeight="SemiBold" 
+                                           Foreground="{DynamicResource ThemeMutedForeground}" 
+                                           VerticalAlignment="Center" />
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Grid>
+            <!-- ■ FIN: Contenido de la ventana -->
+        </Grid>
+    </Border>
+</Window>

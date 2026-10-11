@@ -1,0 +1,19 @@
+﻿<Application x:Class="Punto_de_Venta.App"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:local="clr-namespace:Punto_de_Venta"
+             ShutdownMode="OnExplicitShutdown"
+             StartupUri="MainWindow.xaml">
+    <Application.Resources>
+        <!-- Tokens Apple Light Iniciales -->
+        <SolidColorBrush x:Key="ThemeWindowBackground" Color="#F2F2F7" />
+        <SolidColorBrush x:Key="ThemeSurfaceBackground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ThemeInputBackground" Color="#F2F2F7" />
+        <SolidColorBrush x:Key="ThemeTextForeground" Color="#1C1C1E" />
+        <SolidColorBrush x:Key="ThemeMutedForeground" Color="#8E8E93" />
+        <SolidColorBrush x:Key="ThemeAccent" Color="#007AFF" />
+        <SolidColorBrush x:Key="ThemeButtonBackground" Color="#FFFFFF" />
+        <SolidColorBrush x:Key="ThemeBorder" Color="#E5E5EA" />
+        <SolidColorBrush x:Key="ThemePlaceholder" Color="#8E8E93" />
+    </Application.Resources>
+</Application>

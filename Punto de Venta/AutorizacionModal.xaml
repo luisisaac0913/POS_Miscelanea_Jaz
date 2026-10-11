@@ -1,0 +1,140 @@
+﻿<Window x:Class="Punto_de_Venta.AutorizacionModal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Seguridad"
+        Width="360" Height="260"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Loaded="Window_Loaded">
+
+    <Border Background="{DynamicResource ThemeSurfaceBackground}" 
+            CornerRadius="18" 
+            BorderBrush="{DynamicResource ThemeBorder}" 
+            BorderThickness="1" 
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="25" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.25" />
+        </Border.Effect>
+
+        <Grid Margin="24">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Titulo y Subtitulo -->
+            <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,14">
+                <TextBlock Text="Acceso protegido" 
+                           FontFamily="Segoe UI Variable, Segoe UI" 
+                           FontSize="18" 
+                           FontWeight="Bold" 
+                           Foreground="{DynamicResource ThemeTextForeground}" 
+                           HorizontalAlignment="Center" />
+                <TextBlock Text="Ingresa el PIN de administrador" 
+                           FontFamily="Segoe UI Variable, Segoe UI" 
+                           FontSize="12" 
+                           Foreground="{DynamicResource ThemeMutedForeground}" 
+                           HorizontalAlignment="Center" 
+                           Margin="0,2,0,0" />
+            </StackPanel>
+
+            <!-- Campo de Contrasena / PIN -->
+            <Border Grid.Row="1" 
+                    Background="{DynamicResource ThemeInputBackground}" 
+                    CornerRadius="10" 
+                    BorderBrush="{DynamicResource ThemeBorder}" 
+                    BorderThickness="1" 
+                    Height="42">
+                <PasswordBox x:Name="PinBox"
+                             PasswordChar="●"
+                             MaxLength="10"
+                             FontSize="18"
+                             HorizontalContentAlignment="Center"
+                             VerticalContentAlignment="Center"
+                             Background="Transparent"
+                             Foreground="{DynamicResource ThemeTextForeground}"
+                             CaretBrush="{DynamicResource ThemeAccent}"
+                             BorderThickness="0"
+                             KeyDown="PinBox_KeyDown" />
+            </Border>
+
+            <!-- Mensaje de Error -->
+            <TextBlock x:Name="ErrorMessage" 
+                       Grid.Row="2" 
+                       Text="" 
+                       FontSize="11" 
+                       Foreground="#FF3B30" 
+                       HorizontalAlignment="Center" 
+                       Margin="0,6,0,0" />
+
+            <!-- Botones Cancelar / Entrar -->
+            <Grid Grid.Row="3" VerticalAlignment="Bottom" Margin="0,10,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Content="Cancelar" 
+                        Height="36" 
+                        Background="{DynamicResource ThemeInputBackground}" 
+                        Foreground="{DynamicResource ThemeTextForeground}" 
+                        FontFamily="Segoe UI Variable, Segoe UI" 
+                        FontWeight="SemiBold" 
+                        Cursor="Hand" 
+                        Click="Cancel_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="BorderCancel" 
+                                    Background="{TemplateBinding Background}" 
+                                    BorderBrush="{DynamicResource ThemeBorder}" 
+                                    BorderThickness="1" 
+                                    CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="BorderCancel" Property="BorderBrush" Value="{DynamicResource ThemeAccent}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <Button Grid.Column="2" 
+                        Content="Acceder" 
+                        Height="36" 
+                        Background="{DynamicResource ThemeAccent}" 
+                        Foreground="White" 
+                        FontFamily="Segoe UI Variable, Segoe UI" 
+                        FontWeight="SemiBold" 
+                        Cursor="Hand" 
+                        Click="Accept_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="BorderAccept" 
+                                    Background="{TemplateBinding Background}" 
+                                    CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="BorderAccept" Property="Background" Value="#0062CC" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="BorderAccept" Property="Background" Value="#004FB3" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

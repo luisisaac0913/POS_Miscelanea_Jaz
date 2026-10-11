@@ -1,0 +1,130 @@
+﻿<Window x:Class="Punto_de_Venta.CantidadModal"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Cantidad"
+        Width="340" Height="230"
+        WindowStartupLocation="CenterOwner"
+        ResizeMode="NoResize"
+        WindowStyle="None"
+        AllowsTransparency="True"
+        Background="Transparent"
+        PreviewKeyDown="Window_PreviewKeyDown"
+        Loaded="Window_Loaded">
+
+    <Border Background="{DynamicResource ThemeSurfaceBackground}" 
+            CornerRadius="18" 
+            BorderBrush="{DynamicResource ThemeBorder}" 
+            BorderThickness="1" 
+            Margin="10">
+        <Border.Effect>
+            <DropShadowEffect BlurRadius="25" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.25" />
+        </Border.Effect>
+
+        <Grid Margin="20">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
+
+            <!-- Titulo y Nombre del producto -->
+            <StackPanel Grid.Row="0" Margin="0,0,0,14">
+                <TextBlock x:Name="ProductTitleText" 
+                           Text="Producto" 
+                           FontFamily="Segoe UI Variable, Segoe UI" 
+                           FontSize="17" 
+                           FontWeight="Bold" 
+                           Foreground="{DynamicResource ThemeTextForeground}" 
+                           TextAlignment="Center" 
+                           TextTrimming="CharacterEllipsis" />
+                <TextBlock Text="Cantidad" 
+                           FontSize="12" 
+                           Foreground="{DynamicResource ThemeMutedForeground}" 
+                           TextAlignment="Center" 
+                           Margin="0,2,0,0" />
+            </StackPanel>
+
+            <!-- Input de Cantidad -->
+            <Border Grid.Row="1" 
+                    Background="{DynamicResource ThemeInputBackground}" 
+                    CornerRadius="10" 
+                    BorderBrush="{DynamicResource ThemeAccent}" 
+                    BorderThickness="1.5" 
+                    Height="46">
+                <TextBox x:Name="QuantityBox"
+                         FontSize="22"
+                         FontWeight="Bold"
+                         Foreground="{DynamicResource ThemeTextForeground}"
+                         CaretBrush="{DynamicResource ThemeAccent}"
+                         Background="Transparent"
+                         BorderThickness="0"
+                         VerticalContentAlignment="Center"
+                         HorizontalContentAlignment="Center"
+                         KeyDown="QuantityBox_KeyDown" />
+            </Border>
+
+            <!-- Acciones -->
+            <Grid Grid.Row="2" VerticalAlignment="Bottom" Margin="0,12,0,0">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="10" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+
+                <Button Content="Cancelar (Esc)" 
+                        Height="36" 
+                        Background="{DynamicResource ThemeInputBackground}" 
+                        Foreground="{DynamicResource ThemeTextForeground}" 
+                        FontFamily="Segoe UI Variable, Segoe UI" 
+                        FontWeight="SemiBold" 
+                        Cursor="Hand" 
+                        Click="Cancel_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="CancelBorder" 
+                                    Background="{TemplateBinding Background}" 
+                                    BorderBrush="{DynamicResource ThemeBorder}" 
+                                    BorderThickness="1" 
+                                    CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="CancelBorder" Property="BorderBrush" Value="{DynamicResource ThemeAccent}" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+
+                <Button Grid.Column="2" 
+                        Content="Aceptar (Enter)" 
+                        Height="36" 
+                        Background="{DynamicResource ThemeAccent}" 
+                        Foreground="White" 
+                        FontFamily="Segoe UI Variable, Segoe UI" 
+                        FontWeight="SemiBold" 
+                        Cursor="Hand" 
+                        Click="Accept_Click">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border x:Name="AcceptBorder" 
+                                    Background="{TemplateBinding Background}" 
+                                    CornerRadius="10">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter TargetName="AcceptBorder" Property="Background" Value="#0062CC" />
+                                </Trigger>
+                                <Trigger Property="IsPressed" Value="True">
+                                    <Setter TargetName="AcceptBorder" Property="Background" Value="#004FB3" />
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
+            </Grid>
+        </Grid>
+    </Border>
+</Window>

@@ -240,26 +240,67 @@ namespace Punto_de_Venta
 
         private void DeleteButton_Click(object sender, RoutedEventArgs e)
         {
-            if (!CanWrite() || _selectedDebtor is null)
+            try
             {
-                return;
-            }
+                if (!CanWrite() || _selectedDebtor is null)
+                {
+                    return;
+                }
 
-            var debtorToDelete = _selectedDebtor;
-            var updatedDebtors = Debtors.Where(debtor => debtor.Id != debtorToDelete.Id).ToList();
-            if (!TrySave(updatedDebtors))
+                var debtorToDelete = _selectedDebtor;
+
+                // 1. Desvincular la selección visual ANTES de remover datos para evitar el crash del DataGrid
+                DebtorGrid.SelectedItem = null;
+                _selectedDebtor = null;
+
+                // 2. Eliminar en SQLite (Transaccional: Deudor + sus Abonos relacionados)
+                using (var conn = DatabaseHelper.GetConnection())
+                using (var tr = conn.BeginTransaction())
+                {
+                    try
+                    {
+                        using (var cmdAbonos = conn.CreateCommand())
+                        {
+                            cmdAbonos.Transaction = tr;
+                            cmdAbonos.CommandText = "DELETE FROM Abonos WHERE DeudorId = @id;";
+                            cmdAbonos.Parameters.AddWithValue("@id", debtorToDelete.Id);
+                            cmdAbonos.ExecuteNonQuery();
+                        }
+
+                        using (var cmdDeudor = conn.CreateCommand())
+                        {
+                            cmdDeudor.Transaction = tr;
+                            cmdDeudor.CommandText = "DELETE FROM Deudores WHERE Id = @id;";
+                            cmdDeudor.Parameters.AddWithValue("@id", debtorToDelete.Id);
+                            cmdDeudor.ExecuteNonQuery();
+                        }
+
+                        tr.Commit();
+                    }
+                    catch (Exception exDb)
+                    {
+                        tr.Rollback();
+                        ToastNotification.Show($"Error al eliminar en base de datos: {exDb.Message}", ToastType.Error);
+                        return;
+                    }
+                }
+
+                // 3. Remover de la colección en memoria
+                Debtors.Remove(debtorToDelete);
+
+                // 4. Limpieza y refresco de interfaz
+                ClearForm();
+                SetNextId();
+                UpdateSelectionButtons();
+                UpdateTotalLent();
+
+                // 5. Notificación Toast flotante moderna
+                ToastNotification.Show("Registro de deudor eliminado correctamente.", ToastType.Success);
+            }
+            catch (Exception ex)
             {
-                return;
+                ToastNotification.Show($"Error inesperado: {ex.Message}", ToastType.Error);
             }
-
-            Debtors.Remove(debtorToDelete);
-            DebtorGrid.SelectedItem = null;
-            _selectedDebtor = null;
-            ClearForm();
-            SetNextId();
-            UpdateSelectionButtons();
-            UpdateTotalLent();
-            ShowStatus("Registro eliminado.", true);
         }
 
         private void ModifyButton_Click(object sender, RoutedEventArgs e)

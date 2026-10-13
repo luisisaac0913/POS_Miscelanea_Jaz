@@ -1,9 +1,7 @@
-﻿using System;
+﻿using Microsoft.Data.Sqlite;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
-using System.Text;
 
 namespace Punto_de_Venta
 {
@@ -11,7 +9,7 @@ namespace Punto_de_Venta
     {
         public int Id { get; set; }
         public DateTime FechaHora { get; set; } = DateTime.Now;
-        // Tipos validos: "Fondo", "Entrada", "Salida"
+        // Tipos válidos: "Fondo", "Entrada", "Salida"
         public string Tipo { get; set; } = "Salida";
         public decimal Monto { get; set; }
         public string Concepto { get; set; } = string.Empty;
@@ -19,45 +17,35 @@ namespace Punto_de_Venta
 
     public static class MovimientoCajaFileStore
     {
-        public static string FilePath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz",
-            "movimientos_caja.txt");
-
         public static List<MovimientoCaja> Load()
         {
-            if (!File.Exists(FilePath))
-            {
-                var directory = Path.GetDirectoryName(FilePath)!;
-                Directory.CreateDirectory(directory);
-                using (File.Create(FilePath)) { }
-                return [];
-            }
-
             var list = new List<MovimientoCaja>();
-            var lines = File.ReadAllLines(FilePath);
 
-            for (var index = 0; index < lines.Length; index++)
+            using var conn = DatabaseHelper.GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = "SELECT Id, FechaHora, Tipo, Monto, Concepto FROM MovimientosCaja ORDER BY Id ASC;";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                if (string.IsNullOrWhiteSpace(lines[index])) continue;
+                var id = reader.GetInt32(0);
+                var fechaStr = reader.GetString(1);
+                var tipo = reader.GetString(2);
+                var monto = Convert.ToDecimal(reader.GetDouble(3));
+                var concepto = reader.GetString(4);
 
-                var fields = lines[index].Split(new[] { "//" }, StringSplitOptions.None);
-                if (fields.Length < 5) continue;
-
-                if (!int.TryParse(fields[0].Trim(), NumberStyles.None, CultureInfo.InvariantCulture, out var id) ||
-                    !DateTime.TryParse(fields[1].Trim(), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind, out var date) ||
-                    !decimal.TryParse(fields[3].Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var monto))
+                if (!DateTime.TryParse(fechaStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha))
                 {
-                    continue;
+                    DateTime.TryParse(fechaStr, CultureInfo.GetCultureInfo("es-MX"), DateTimeStyles.None, out fecha);
                 }
 
                 list.Add(new MovimientoCaja
                 {
                     Id = id,
-                    FechaHora = date.ToLocalTime(),
-                    Tipo = fields[2].Trim(),
+                    FechaHora = fecha,
+                    Tipo = tipo,
                     Monto = monto,
-                    Concepto = fields[4].Trim()
+                    Concepto = concepto
                 });
             }
 
@@ -66,25 +54,47 @@ namespace Punto_de_Venta
 
         public static void Save(IEnumerable<MovimientoCaja> movimientos)
         {
-            var directory = Path.GetDirectoryName(FilePath)!;
-            Directory.CreateDirectory(directory);
-            var temporaryPath = Path.Combine(directory, $"movimientos.{Guid.NewGuid():N}.tmp");
+            using var conn = DatabaseHelper.GetConnection();
+            using var tr = conn.BeginTransaction();
 
             try
             {
-                var lines = movimientos.Select(m => string.Join("//",
-                    m.Id.ToString(CultureInfo.InvariantCulture),
-                    m.FechaHora.ToString("O", CultureInfo.InvariantCulture),
-                    m.Tipo,
-                    m.Monto.ToString("0.00", CultureInfo.InvariantCulture),
-                    m.Concepto.Replace("//", "/").Replace("\r", "").Replace("\n", "")));
+                using (var delCmd = conn.CreateCommand())
+                {
+                    delCmd.Transaction = tr;
+                    delCmd.CommandText = "DELETE FROM MovimientosCaja;";
+                    delCmd.ExecuteNonQuery();
+                }
 
-                File.WriteAllLines(temporaryPath, lines, new UTF8Encoding(false));
-                File.Move(temporaryPath, FilePath, true);
+                using var insertCmd = conn.CreateCommand();
+                insertCmd.Transaction = tr;
+                insertCmd.CommandText = @"
+                    INSERT INTO MovimientosCaja (Id, FechaHora, Tipo, Monto, Concepto)
+                    VALUES (@id, @fecha, @tipo, @monto, @concepto);";
+
+                var pId = insertCmd.Parameters.Add("@id", SqliteType.Integer);
+                var pFecha = insertCmd.Parameters.Add("@fecha", SqliteType.Text);
+                var pTipo = insertCmd.Parameters.Add("@tipo", SqliteType.Text);
+                var pMonto = insertCmd.Parameters.Add("@monto", SqliteType.Real);
+                var pConcepto = insertCmd.Parameters.Add("@concepto", SqliteType.Text);
+
+                foreach (var mov in movimientos)
+                {
+                    pId.Value = mov.Id;
+                    pFecha.Value = mov.FechaHora.ToString("o", CultureInfo.InvariantCulture);
+                    pTipo.Value = mov.Tipo ?? "Gasto";
+                    pMonto.Value = Convert.ToDouble(mov.Monto);
+                    pConcepto.Value = mov.Concepto ?? string.Empty;
+
+                    insertCmd.ExecuteNonQuery();
+                }
+
+                tr.Commit();
             }
-            finally
+            catch
             {
-                if (File.Exists(temporaryPath)) File.Delete(temporaryPath);
+                tr.Rollback();
+                throw;
             }
         }
     }

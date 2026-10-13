@@ -11,11 +11,18 @@ namespace Punto_de_Venta
     {
         public static string[] ObtenerPuertosDisponibles()
         {
-            return SerialPort.GetPortNames();
+            try
+            {
+                return SerialPort.GetPortNames();
+            }
+            catch
+            {
+                return Array.Empty<string>();
+            }
         }
 
         /// <summary>
-        /// Realiza una prueba sincrónica (usada comúnmente en la pantalla de Configuración).
+        /// Realiza una prueba sincrónica (usada en la pantalla de Configuración).
         /// </summary>
         public static bool ProbarConexion(string puerto, int baudRate, out decimal pesoObtenido, out string mensajeError)
         {
@@ -24,7 +31,7 @@ namespace Punto_de_Venta
 
             if (string.IsNullOrWhiteSpace(puerto))
             {
-                mensajeError = "No se ha seleccionado ningún puerto COM.";
+                mensajeError = "No se ha seleccionado ningun puerto COM.";
                 return false;
             }
 
@@ -59,8 +66,8 @@ namespace Punto_de_Venta
                 }
 
                 mensajeError = string.IsNullOrWhiteSpace(respuesta)
-                    ? "La báscula no respondió en el tiempo límite."
-                    : $"Respuesta no válida de la báscula: '{respuesta.Trim()}'";
+                    ? "La bascula no respondio en el tiempo limite. Ay Jaz"
+                    : $"Respuesta no válida de la bascula: '{respuesta.Trim()}'";
                 return false;
             }
             catch (Exception ex)
@@ -86,7 +93,7 @@ namespace Punto_de_Venta
 
             if (!config.BasculaHabilitada)
             {
-                return (false, 0m, "La báscula está desactivada en la configuración.");
+                return (false, 0m, "La bascula está desactivada en la configuracion.");
             }
 
             return await Task.Run(() =>
@@ -97,7 +104,7 @@ namespace Punto_de_Venta
 
                 if (string.IsNullOrWhiteSpace(puerto))
                 {
-                    return (false, 0m, "No se ha configurado un puerto COM para la báscula.");
+                    return (false, 0m, "No se ha configurado un puerto COM para la bascula.");
                 }
 
                 SerialPort? port = null;
@@ -114,7 +121,6 @@ namespace Punto_de_Venta
 
                     if (!esModoContinuo)
                     {
-                        // Enviar petición de peso
                         port.Write("P\r");
                     }
 
@@ -156,7 +162,6 @@ namespace Punto_de_Venta
             peso = 0m;
             if (string.IsNullOrWhiteSpace(respuesta)) return false;
 
-            // Busca el primer patrón decimal en la trama (ej: " 1.250 kg", "ST,GS,  2.500kg", "P: 0.750")
             var match = Regex.Match(respuesta, @"[-+]?[0-9]*\.?[0-9]+");
             if (match.Success)
             {

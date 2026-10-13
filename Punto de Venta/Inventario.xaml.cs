@@ -10,13 +10,13 @@ using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Markup;
 using System.Windows.Threading;
-using static OpenTK.Graphics.OpenGL.GL;
 
 namespace Punto_de_Venta
 {
     public partial class Inventario : Window
     {
         private readonly DispatcherTimer _clockTimer;
+        private readonly DispatcherTimer _searchDebounceTimer;
         private Producto? _selectedProduct;
         private bool _loadFailed;
         private bool _isUpdatingForm;
@@ -24,6 +24,7 @@ namespace Punto_de_Venta
 
         public ObservableCollection<Producto> Products { get; } = [];
         public ICollectionView ProductsView { get; }
+
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -35,9 +36,11 @@ namespace Punto_de_Venta
                 DragMove();
             }
         }
+
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
         public Inventario()
         {
             InitializeComponent();
@@ -63,10 +66,19 @@ namespace Punto_de_Venta
             SetNextId();
             UpdateSelectionActions();
 
+            // Reloj
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
             Closed += (_, _) => _clockTimer.Stop();
+
+            // Optimización de Búsqueda: Debounce Timer para no saturar CPU al teclear
+            _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            _searchDebounceTimer.Tick += (_, _) =>
+            {
+                _searchDebounceTimer.Stop();
+                ProductsView.Refresh();
+            };
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
@@ -74,8 +86,80 @@ namespace Punto_de_Venta
             FocusCodeBox();
         }
 
+        private void ImprimirEtiquetaSeleccionada()
+        {
+            // 1. Validar selección usando _selectedProduct o ProductGrid.SelectedItem
+            var producto = _selectedProduct ?? ProductGrid.SelectedItem as Producto;
+
+            if (producto == null)
+            {
+                ToastNotification.Show("Selecciona primero un producto de la tabla para imprimir su etiqueta.", ToastType.Warning);
+                return;
+            }
+
+            // 2. Verificar que exista una impresora térmica configurada en Ajustes
+            var config = AppConfig.Load();
+            if (string.IsNullOrWhiteSpace(config.ImpresoraSeleccionada))
+            {
+                ToastNotification.Show("No hay una impresora configurada en Ajustes.", ToastType.Warning);
+                return;
+            }
+
+            // 3. Tomar código de barras existente o usar el ID numérico interno
+            string codigoBarras = !string.IsNullOrWhiteSpace(producto.Codigo)
+                ? producto.Codigo.Trim()
+                : producto.Id.ToString(CultureInfo.InvariantCulture);
+
+            try
+            {
+                // 4. Generar bytes nativos ESC/POS (Code 128)
+                byte[] buffer = EtiquetaPrinter.GenerarBytesEtiqueta(
+                    config.NombreNegocio,
+                    producto.Nombre,
+                    codigoBarras,
+                    producto.Precio,
+                    copias: 1
+                );
+
+                // 5. Enviar directamente al Spooler de Windows en modo RAW
+                bool impreso = RawPrinterHelper.SendBytesToPrinter(config.ImpresoraSeleccionada, buffer);
+
+                if (impreso)
+                {
+                    ToastNotification.Show($"🏷️ Etiqueta de \"{producto.Nombre}\" enviada a imprimir.", ToastType.Success);
+                }
+                else
+                {
+                    ToastNotification.Show("No se pudo enviar la etiqueta a la impresora térmica.", ToastType.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                ToastNotification.Show($"Error al generar etiqueta: {ex.Message}", ToastType.Error);
+            }
+        }
+
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
+            // Cerrar Modal de ReStock Rápido
+            if (QuickRestockOverlay.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    CloseQuickRestock();
+                    e.Handled = true;
+                }
+                return;
+            }
+
+            // Atajo F9: Imprimir Etiqueta
+            if (e.Key == Key.F9)
+            {
+                ImprimirEtiquetaSeleccionada();
+                e.Handled = true;
+                return;
+            }
+
             if (e.Key == Key.Escape)
             {
                 Close();
@@ -141,7 +225,8 @@ namespace Punto_de_Venta
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
             SearchPlaceholder.Visibility = string.IsNullOrEmpty(SearchBox.Text) ? Visibility.Visible : Visibility.Collapsed;
-            ProductsView.Refresh();
+            _searchDebounceTimer.Stop();
+            _searchDebounceTimer.Start();
         }
 
         private void QuickRestock_Click(object sender, RoutedEventArgs e)
@@ -174,13 +259,11 @@ namespace Punto_de_Venta
 
         private void CostOrMargin_TextChanged(object sender, TextChangedEventArgs e)
         {
-            // La suma de Costo + Ganancia ahora se calcula al guardar en TryReadForm
         }
 
         private void ProductGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _selectedProduct = ProductGrid.SelectedItem as Producto;
-
             UpdateSelectionActions();
 
             if (_selectedProduct is null)
@@ -230,18 +313,8 @@ namespace Punto_de_Venta
             }
             else
             {
-                _selectedProduct = null;
-                ProductGrid.SelectedItem = null;
-                UpdateSelectionActions();
-                SetNextId();
-
-                ProductNameBox.Clear();
-                ProductCategoryBox.Clear();
-                StockBox.Text = "0";
-                ProductCostBox.Clear();
-                ProductMarginBox.Clear();
-                if (AskQuantityCheckBox != null) AskQuantityCheckBox.IsChecked = false;
-
+                ClearSelectionAndForm();
+                ProductCodeBox.Text = code;
                 ProductNameBox.Focus();
             }
 
@@ -354,8 +427,7 @@ namespace Punto_de_Venta
 
             ToastNotification.Show($"Producto '{newProduct.Nombre}' registrado", ToastType.Success);
 
-            ClearForm();
-            SetNextId();
+            ClearSelectionAndForm();
             FocusCodeBox();
         }
 
@@ -386,11 +458,8 @@ namespace Punto_de_Venta
             }
 
             Products.Remove(productToDelete);
-            ProductGrid.SelectedItem = null;
-            ClearForm();
-            UpdateSelectionActions();
+            ClearSelectionAndForm();
             UpdateProductCount();
-            SetNextId();
             FocusCodeBox();
 
             ToastNotification.Show($"Producto '{productToDelete.Nombre}' eliminado", ToastType.Success);
@@ -398,13 +467,13 @@ namespace Punto_de_Venta
 
         private bool HasDuplicateCode(string code, int? excludedId = null)
         {
-            // Si no tiene código de barras asignado, se permite
             if (string.IsNullOrWhiteSpace(code)) return false;
 
             return Products.Any(product =>
                 product.Id != excludedId &&
                 string.Equals(product.Codigo, code, StringComparison.OrdinalIgnoreCase));
         }
+
         private void ModifyButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CanWrite() || _selectedProduct is null || !TryReadForm(out var code, out var name, out var cost, out var margin, out var price, out var category, out var stock))
@@ -422,6 +491,7 @@ namespace Punto_de_Venta
                 ShowValidationError("Ya existe otro producto con ese código de barras.", "ProductCodeBox");
                 return;
             }
+
             var oldProduct = _selectedProduct;
             var updatedProduct = new Producto
             {
@@ -449,23 +519,27 @@ namespace Punto_de_Venta
             }
 
             ProductsView.Refresh();
-            SelectProduct(updatedProduct);
             UpdateProductCount();
-            ClearForm();
-            SetNextId();
-            FocusCodeBox();
 
             ToastNotification.Show($"Producto '{updatedProduct.Nombre}' actualizado", ToastType.Success);
+
+            ClearSelectionAndForm();
+            FocusCodeBox();
         }
 
         private void ClearSelectionButton_Click(object sender, RoutedEventArgs e)
+        {
+            ClearSelectionAndForm();
+            FocusCodeBox();
+        }
+
+        private void ClearSelectionAndForm()
         {
             ProductGrid.SelectedItem = null;
             _selectedProduct = null;
             UpdateSelectionActions();
             ClearForm();
             SetNextId();
-            FocusCodeBox();
         }
 
         private bool TryReadForm(out string code, out string name, out decimal cost, out decimal margin, out decimal price, out string category, out int stock)
@@ -556,7 +630,7 @@ namespace Punto_de_Venta
             }
             catch (Exception exception)
             {
-                ToastNotification.Show($"Error al guardar productos.txt: {exception.Message}", ToastType.Error);
+                ToastNotification.Show($"Error al guardar inventario: {exception.Message}", ToastType.Error);
                 return false;
             }
         }
@@ -623,5 +697,117 @@ namespace Punto_de_Venta
             ProductGrid.SelectedItem = product;
             ProductGrid.ScrollIntoView(product);
         }
+
+        #region Módulo Modo ReStock Rápido (Modal Instantáneo)
+        private void OpenQuickRestockModal_Click(object sender, RoutedEventArgs e)
+        {
+            QrScanCodeBox.Clear();
+            QrAddAmountBox.Text = "1";
+            QrFoundProductLabel.Text = string.Empty;
+            QrStatusMessage.Text = string.Empty;
+
+            QuickRestockOverlay.Visibility = Visibility.Visible;
+            QrScanCodeBox.Focus();
+            Keyboard.Focus(QrScanCodeBox);
+        }
+
+        private void CloseQuickRestock_Click(object sender, RoutedEventArgs e) => CloseQuickRestock();
+
+        private void CloseQuickRestock()
+        {
+            QuickRestockOverlay.Visibility = Visibility.Collapsed;
+            FocusCodeBox();
+        }
+
+        private void QrScanCodeBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter) return;
+
+            var code = QrScanCodeBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(code)) return;
+
+            var prod = Products.FirstOrDefault(p =>
+                string.Equals(p.Codigo, code, StringComparison.OrdinalIgnoreCase) ||
+                p.Id.ToString(CultureInfo.InvariantCulture) == code);
+
+            if (prod != null)
+            {
+                QrFoundProductLabel.Text = $"✅ {prod.Nombre} (Stock actual: {prod.Stock})";
+                QrStatusMessage.Text = string.Empty;
+                QrAddAmountBox.Focus();
+                QrAddAmountBox.SelectAll();
+            }
+            else
+            {
+                QrFoundProductLabel.Text = string.Empty;
+                QrStatusMessage.Text = "⚠️ Producto no encontrado con ese código.";
+                QrScanCodeBox.SelectAll();
+            }
+
+            e.Handled = true;
+        }
+
+        private void QrAddAmountBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                ConfirmQuickRestockProcess();
+                e.Handled = true;
+            }
+        }
+
+        private void ConfirmQuickRestock_Click(object sender, RoutedEventArgs e) => ConfirmQuickRestockProcess();
+
+        private void ConfirmQuickRestockProcess()
+        {
+            var code = QrScanCodeBox.Text.Trim();
+            var amountText = QrAddAmountBox.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                QrStatusMessage.Text = "Escanea o escribe un código.";
+                QrScanCodeBox.Focus();
+                return;
+            }
+
+            var prod = Products.FirstOrDefault(p =>
+                string.Equals(p.Codigo, code, StringComparison.OrdinalIgnoreCase) ||
+                p.Id.ToString(CultureInfo.InvariantCulture) == code);
+
+            if (prod == null)
+            {
+                QrStatusMessage.Text = "Producto no encontrado.";
+                QrScanCodeBox.Focus();
+                return;
+            }
+
+            if (!int.TryParse(amountText, out var addAmount) || addAmount <= 0)
+            {
+                QrStatusMessage.Text = "Ingresa una cantidad entera mayor a 0.";
+                QrAddAmountBox.Focus();
+                QrAddAmountBox.SelectAll();
+                return;
+            }
+
+            prod.Stock += addAmount;
+
+            if (TrySave(Products))
+            {
+                ProductsView.Refresh();
+                ToastNotification.Show($"+{addAmount} pzas añadidas a '{prod.Nombre}'. Nuevo Stock: {prod.Stock}", ToastType.Success);
+
+                QrScanCodeBox.Clear();
+                QrAddAmountBox.Text = "1";
+                QrFoundProductLabel.Text = $"Último: {prod.Nombre} (Stock: {prod.Stock})";
+                QrStatusMessage.Text = string.Empty;
+                QrScanCodeBox.Focus();
+            }
+            else
+            {
+                prod.Stock -= addAmount;
+                QrStatusMessage.Text = "Error al guardar en disco.";
+            }
+        }
+        #endregion
     }
 }

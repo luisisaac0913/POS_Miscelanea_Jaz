@@ -4,6 +4,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Effects;
 
 namespace Punto_de_Venta
 {
@@ -13,7 +14,7 @@ namespace Punto_de_Venta
         private bool _conteoConfirmado;
         private decimal _totalCalculado;
         private readonly CultureInfo _culture = CultureInfo.GetCultureInfo("es-MX");
-
+        private BlurEffect? _blurEffect;
         public decimal TotalContadoResult => _totalCalculado;
         public bool Realizado { get; private set; }
 
@@ -21,6 +22,27 @@ namespace Punto_de_Venta
         {
             InitializeComponent();
             _totalEsperado = totalEsperado;
+            Loaded += (_, _) =>
+            {
+                if (Owner != null)
+                {
+                    _blurEffect = new BlurEffect
+                    {
+                        Radius = 12,
+                        RenderingBias = RenderingBias.Performance
+                    };
+                    Owner.Effect = _blurEffect;
+                }
+            };
+
+            // Quitar el desenfoque al cerrar
+            Closed += (_, _) =>
+            {
+                if (Owner != null)
+                {
+                    Owner.Effect = null;
+                }
+            };
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

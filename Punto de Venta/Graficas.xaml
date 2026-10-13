@@ -6,9 +6,9 @@
         MinWidth="1040" MinHeight="660"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None" 
-    AllowsTransparency="True"
-    Background="Transparent"
-    Icon="/Imagenes/Logo.ico"
+        AllowsTransparency="True"
+        Background="Transparent"
+        Icon="/Imagenes/Logo.ico"
         PreviewKeyDown="Window_PreviewKeyDown"
         Loaded="Window_Loaded"
         UseLayoutRounding="True"
@@ -137,7 +137,7 @@
         </Style>
     </Window.Resources>
 
-    <!-- ■ INICIO: Contenedor con esquinas redondeadas y fondo dinámico -->
+    <!-- Contenedor con esquinas redondeadas y fondo dinámico -->
     <Border Background="{DynamicResource ThemeWindowBackground}" 
             BorderBrush="{DynamicResource ThemeBorder}" 
             BorderThickness="1" 
@@ -147,12 +147,10 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="38" />
-                <!-- ■ Fila 0: Barra superior moderna -->
                 <RowDefinition Height="*" />
-                <!-- ■ Fila 1: Cuerpo de la ventana -->
             </Grid.RowDefinitions>
 
-            <!-- ■ INICIO: Barra de título con el texto 'Graficas' en el centro -->
+            <!-- Barra de título con el texto 'Graficas' en el centro -->
             <Grid Grid.Row="0" 
                   Background="Transparent" 
                   MouseLeftButtonDown="ModernTitleBar_MouseLeftButtonDown">
@@ -162,7 +160,6 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Icono de la ventana -->
                 <Image Grid.Column="0" 
                        Source="/Imagenes/Logo.ico" 
                        Width="16" Height="16" 
@@ -170,7 +167,6 @@
                        VerticalAlignment="Center" 
                        Opacity="0.75" />
 
-                <!-- ■ Título 'Graficas' centrado en la barra -->
                 <TextBlock Grid.Column="1" 
                            Text="Graficas" 
                            FontFamily="Segoe UI Variable, Segoe UI, -apple-system" 
@@ -181,13 +177,11 @@
                            VerticalAlignment="Center" 
                            IsHitTestVisible="False" />
 
-                <!-- ■ Botones modernos a la derecha -->
                 <StackPanel Grid.Column="2" 
                             Orientation="Horizontal" 
                             VerticalAlignment="Center" 
                             Margin="0,0,6,0">
 
-                    <!-- Minimizar -->
                     <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMinimize_Click" ToolTip="Minimizar">
                         <Path Data="M 0,0 L 10,0" 
                               Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -197,7 +191,6 @@
                               VerticalAlignment="Center" />
                     </Button>
 
-                    <!-- Maximizar / Restaurar -->
                     <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMaximize_Click" ToolTip="Maximizar">
                         <Border Width="10" Height="10" 
                                 BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -205,7 +198,6 @@
                                 CornerRadius="2.5" />
                     </Button>
 
-                    <!-- Cerrar -->
                     <Button Style="{StaticResource WinCaptionCloseButtonStyle}" Click="BtnClose_Click" ToolTip="Cerrar">
                         <Path Data="M 0,0 L 9,9 M 9,0 L 0,9" 
                               Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -216,9 +208,8 @@
                     </Button>
                 </StackPanel>
             </Grid>
-            <!-- ■ FIN: Barra de título moderna -->
 
-            <!-- ■ INICIO: Contenido de la ventana dentro de la Fila 1 -->
+            <!-- Contenido Principal -->
             <Grid Grid.Row="1" Margin="24,10,24,18">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -226,16 +217,13 @@
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- 1. Encabezado + Filtro de Periodo + Botón Ayuda -->
+                <!-- 1. Encabezado + Filtro de Periodo + Botón Ayuda + Reloj -->
                 <Grid Grid.Row="0" Margin="0,0,0,14">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- ■ CAMBIO: Se retiró el TextBlock grande 'Graficas' porque ya está centrado en la barra superior -->
-
-                    <!-- Controles a la derecha: Selector de Periodo + Botón Ayuda + Reloj -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                         <!-- Selector de Periodo iOS (Hoy, Semana, Mes, Año) -->
                         <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="11" Padding="3" VerticalAlignment="Center">
@@ -325,7 +313,7 @@
                     </Border>
                 </Grid>
 
-                <!-- 3. Contenido Principal: Barra Lateral + Gráfica o Auditoría + Top Productos -->
+                <!-- 3. Contenido Principal: Barra Lateral + Gráficas / Tablas + Top Productos -->
                 <Grid Grid.Row="2">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="200" />
@@ -335,7 +323,7 @@
                         <ColumnDefinition Width="290" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Menú Lateral iPadOS -->
+                    <!-- Menú Lateral iPadOS enriquecido -->
                     <Border Grid.Column="0" Style="{StaticResource CardStyle}" Padding="12,14">
                         <StackPanel>
                             <TextBlock Text="VISTAS" FontFamily="Segoe UI Variable, Segoe UI" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" Margin="8,0,0,10" />
@@ -343,11 +331,13 @@
                             <Button x:Name="NavFinanzasBtn" Content="📊  Finanzas" Style="{StaticResource SidebarButtonStyle}" Click="NavFinanzas_Click" />
                             <Button x:Name="NavMetodosBtn" Content="💳  Métodos de Pago" Style="{StaticResource SidebarButtonStyle}" Click="NavMetodos_Click" />
                             <Button x:Name="NavCategoriasBtn" Content="🏷 Categorías" Style="{StaticResource SidebarButtonStyle}" Click="NavCategorias_Click" />
+                            <Button x:Name="NavHorasBtn" Content="⏰  Horas Pico" Style="{StaticResource SidebarButtonStyle}" Click="NavHorasBtn_Click" />
+                            <Button x:Name="NavRentabilidadBtn" Content="💎  Rentabilidad Top" Style="{StaticResource SidebarButtonStyle}" Click="NavRentabilidadBtn_Click" />
                             <Button x:Name="NavCortesBtn" Content="🧾  Cortes de Caja" Style="{StaticResource SidebarButtonStyle}" Click="NavCortesBtn_Click" />
                         </StackPanel>
                     </Border>
 
-                    <!-- Área Central: Alterna entre Gráfica y Auditoría de Cortes -->
+                    <!-- Área Central: Alterna entre Gráfica Cartesian, Gráfica Pie y Auditoría de Cortes -->
                     <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="16">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -357,8 +347,11 @@
 
                             <TextBlock x:Name="ChartTitleText" Text="Venta Total vs Costo vs Ganancia Neta" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,12" />
 
-                            <!-- Gráfica LiveCharts (Finanzas, Métodos, Categorías) -->
+                            <!-- Gráfica Cartesiana LiveCharts (Barras / Líneas) -->
                             <lvc:CartesianChart x:Name="MainChartView" Grid.Row="1" Series="{Binding SeriesPrincipal}" XAxes="{Binding EjesXPrincipal}" YAxes="{Binding EjesYPrincipal}" />
+
+                            <!-- Gráfica de Dona / Pastel LiveCharts (Exclusiva para Métodos de Pago) -->
+                            <lvc:PieChart x:Name="PieChartView" Grid.Row="1" Series="{Binding SeriesPie}" Visibility="Collapsed" LegendPosition="Right" />
 
                             <!-- Tabla de Auditoría de Cortes -->
                             <Grid x:Name="CortesContainerView" Grid.Row="1" Visibility="Collapsed">
@@ -413,7 +406,7 @@
                         </Grid>
                     </Border>
 
-                    <!-- Top 5 Productos -->
+                    <!-- Top 5 Productos / Top Rentables -->
                     <Border Grid.Column="4" Style="{StaticResource CardStyle}" Padding="16">
                         <Grid>
                             <Grid.RowDefinitions>
@@ -421,7 +414,7 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock Text="Top Productos Vendidos" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,12" />
+                            <TextBlock x:Name="TopListTitleText" Text="Top Productos Vendidos" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,12" />
 
                             <ItemsControl Grid.Row="1" ItemsSource="{Binding TopProductos}" VerticalAlignment="Top">
                                 <ItemsControl.ItemTemplate>
@@ -448,7 +441,7 @@
                     </Border>
                 </Grid>
 
-                <!-- ================= MODAL: GUÍA DE AYUDA RÁPIDA (HelpOverlay) ================= -->
+                <!-- Modal Guía de Ayuda Rápida -->
                 <Grid x:Name="HelpOverlay" Grid.RowSpan="3" Panel.ZIndex="100" Background="#66000000" Visibility="Collapsed" MouseDown="HelpOverlay_MouseDown">
                     <Border Width="640" MaxHeight="600" Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="26" Padding="28,24" HorizontalAlignment="Center" VerticalAlignment="Center" Effect="{StaticResource AppleModalShadow}">
                         <Grid>
@@ -461,7 +454,7 @@
                             </Grid.RowDefinitions>
 
                             <StackPanel Grid.Row="0">
-                                <TextBlock Text="Guia" FontFamily="Segoe UI Variable, Segoe UI" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                <TextBlock Text="Guía de Métricas" FontFamily="Segoe UI Variable, Segoe UI" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
                             </StackPanel>
 
                             <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
@@ -469,37 +462,37 @@
                                     <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,12" Margin="0,0,0,10">
                                         <StackPanel>
                                             <TextBlock Text="Venta Total" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ThemeTextForeground}" />
-                                            <TextBlock Text="Es todo el dinero recibido. Ya sea por tarjeta, efectivo o transferencia." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
+                                            <TextBlock Text="Importe bruto cobrado por todos los métodos de pago disponibles." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Border>
                                     <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,12" Margin="0,0,0,10">
                                         <StackPanel>
                                             <TextBlock Text="Costo" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ThemeTextForeground}" />
-                                            <TextBlock Text="El dinero que se invirtio en el producto." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
+                                            <TextBlock Text="Costo de adquisición de la mercancía vendida (inversión de reposición)." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Border>
                                     <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,12" Margin="0,0,0,10">
                                         <StackPanel>
                                             <TextBlock Text="Ganancia Bruta" FontWeight="Bold" FontSize="14" Foreground="{StaticResource SystemGreen}" />
-                                            <TextBlock Text="La ganancia que obtienes de vender un producto." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
+                                            <TextBlock Text="Utilidad generada antes de descontar los gastos operativos de caja." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Border>
                                     <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,12" Margin="0,0,0,10">
                                         <StackPanel>
                                             <TextBlock Text="Gastos de Caja" FontWeight="Bold" FontSize="14" Foreground="#EF4444" />
-                                            <TextBlock Text="El dinero que se saco del cajon para pagar la luz, comprar bolsas, pagarle al repartidor o comprar un refresco." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
+                                            <TextBlock Text="Retiros registrados en el turno para compras menores, servicios o pagos a proveedores." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Border>
                                     <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,12" Margin="0,0,0,10">
                                         <StackPanel>
-                                            <TextBlock Text="Balance Neto" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ThemeAccent}" />
-                                            <TextBlock Text="Es la resta final: (Ventas Totales - Gastos que salieron de la caja). Es el dinero real que debe haber quedado." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
+                                            <TextBlock Text="Horas Pico" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ThemeAccent}" />
+                                            <TextBlock Text="Distribución horaria que muestra a qué horas del día se concentra el mayor volumen de clientes para reforzar la atención en mostrador." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Border>
                                     <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,12">
                                         <StackPanel>
-                                            <TextBlock Text="Cortes de Caja" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ThemeTextForeground}" />
-                                            <TextBlock Text="Verde: El dinero contado coincide exacto con el sistema.&#x0a;Naranja (Sobrante): Tienes mas dinero en mano del que marco la maquina.&#x0a;Rojo (Faltante): Falta dinero en el cajon fisico." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
+                                            <TextBlock Text="Rentabilidad Top" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ThemeTextForeground}" />
+                                            <TextBlock Text="Ranking de artículos ordenados por dinero neto que dejan a la caja, no solo por piezas vendidas." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -518,7 +511,6 @@
                     </Border>
                 </Grid>
             </Grid>
-            <!-- ■ FIN: Contenido de la ventana -->
         </Grid>
     </Border>
 </Window>

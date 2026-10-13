@@ -1,47 +1,40 @@
-﻿using System;
+﻿using Microsoft.Data.Sqlite;
+using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
-using System.Linq;
 
 namespace Punto_de_Venta
 {
     public static class CorteCajaFileStore
     {
-        public static string FilePath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz",
-            "cortes.txt");
-
         public static List<CorteCaja> Load()
         {
-            if (!File.Exists(FilePath))
-            {
-                var dir = Path.GetDirectoryName(FilePath)!;
-                Directory.CreateDirectory(dir);
-                using (File.Create(FilePath)) { }
-                return [];
-            }
-
             var list = new List<CorteCaja>();
-            var lines = File.ReadAllLines(FilePath);
 
-            foreach (var line in lines)
+            using var conn = DatabaseHelper.GetConnection();
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = @"
+                SELECT Id, FechaHora, FondoInicial, VentasEfectivo, EntradasEfectivo, SalidasEfectivo, TotalEsperado, TotalContado, Observaciones 
+                FROM CortesCaja 
+                ORDER BY Id ASC;";
+
+            using var reader = cmd.ExecuteReader();
+            while (reader.Read())
             {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var parts = line.Split(new[] { "//" }, StringSplitOptions.None);
-                if (parts.Length < 8) continue;
+                var id = reader.GetInt32(0);
+                var fechaStr = reader.GetString(1);
+                var fondo = Convert.ToDecimal(reader.GetDouble(2));
+                var ventas = Convert.ToDecimal(reader.GetDouble(3));
+                var entradas = Convert.ToDecimal(reader.GetDouble(4));
+                var salidas = Convert.ToDecimal(reader.GetDouble(5));
+                var esperado = Convert.ToDecimal(reader.GetDouble(6));
+                var contado = Convert.ToDecimal(reader.GetDouble(7));
+                var notas = reader.IsDBNull(8) ? string.Empty : reader.GetString(8);
 
-                if (!int.TryParse(parts[0], NumberStyles.Integer, CultureInfo.InvariantCulture, out var id)) continue;
-                if (!DateTime.TryParse(parts[1], CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha)) continue;
-
-                var fondo = ParseDecimal(parts[2]);
-                var ventas = ParseDecimal(parts[3]);
-                var entradas = ParseDecimal(parts[4]);
-                var salidas = ParseDecimal(parts[5]);
-                var esperado = ParseDecimal(parts[6]);
-                var contado = ParseDecimal(parts[7]);
-                var notas = parts.Length > 8 ? parts[8] : string.Empty;
+                if (!DateTime.TryParse(fechaStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha))
+                {
+                    DateTime.TryParse(fechaStr, CultureInfo.GetCultureInfo("es-MX"), DateTimeStyles.None, out fecha);
+                }
 
                 list.Add(new CorteCaja
                 {
@@ -62,29 +55,56 @@ namespace Punto_de_Venta
 
         public static void Save(IEnumerable<CorteCaja> cortes)
         {
-            var lines = cortes.Select(c => string.Join("//",
-                c.Id.ToString(CultureInfo.InvariantCulture),
-                c.FechaHora.ToString("o", CultureInfo.InvariantCulture),
-                c.FondoInicial.ToString("0.00", CultureInfo.InvariantCulture),
-                c.VentasEfectivo.ToString("0.00", CultureInfo.InvariantCulture),
-                c.EntradasEfectivo.ToString("0.00", CultureInfo.InvariantCulture),
-                c.SalidasEfectivo.ToString("0.00", CultureInfo.InvariantCulture),
-                c.TotalEsperado.ToString("0.00", CultureInfo.InvariantCulture),
-                c.TotalContado.ToString("0.00", CultureInfo.InvariantCulture),
-                c.Observaciones.Replace("//", " ").Trim()));
+            using var conn = DatabaseHelper.GetConnection();
+            using var tr = conn.BeginTransaction();
 
-            // Guardado atómico centralizado con vaciado físico
-            SafeFileStore.WriteAllLinesAtomic(FilePath, lines);
-        }
-
-        private static decimal ParseDecimal(string text)
-        {
-            if (decimal.TryParse(text.Trim(), NumberStyles.Number, CultureInfo.InvariantCulture, out var val) ||
-                decimal.TryParse(text.Trim(), NumberStyles.Number, CultureInfo.GetCultureInfo("es-MX"), out val))
+            try
             {
-                return val;
+                using (var delCmd = conn.CreateCommand())
+                {
+                    delCmd.Transaction = tr;
+                    delCmd.CommandText = "DELETE FROM CortesCaja;";
+                    delCmd.ExecuteNonQuery();
+                }
+
+                using var insertCmd = conn.CreateCommand();
+                insertCmd.Transaction = tr;
+                insertCmd.CommandText = @"
+                    INSERT INTO CortesCaja (Id, FechaHora, FondoInicial, VentasEfectivo, EntradasEfectivo, SalidasEfectivo, TotalEsperado, TotalContado, Observaciones)
+                    VALUES (@id, @fecha, @fondo, @ventas, @entradas, @salidas, @esperado, @contado, @obs);";
+
+                var pId = insertCmd.Parameters.Add("@id", SqliteType.Integer);
+                var pFecha = insertCmd.Parameters.Add("@fecha", SqliteType.Text);
+                var pFondo = insertCmd.Parameters.Add("@fondo", SqliteType.Real);
+                var pVentas = insertCmd.Parameters.Add("@ventas", SqliteType.Real);
+                var pEntradas = insertCmd.Parameters.Add("@entradas", SqliteType.Real);
+                var pSalidas = insertCmd.Parameters.Add("@salidas", SqliteType.Real);
+                var pEsperado = insertCmd.Parameters.Add("@esperado", SqliteType.Real);
+                var pContado = insertCmd.Parameters.Add("@contado", SqliteType.Real);
+                var pObs = insertCmd.Parameters.Add("@obs", SqliteType.Text);
+
+                foreach (var c in cortes)
+                {
+                    pId.Value = c.Id;
+                    pFecha.Value = c.FechaHora.ToString("o", CultureInfo.InvariantCulture);
+                    pFondo.Value = Convert.ToDouble(c.FondoInicial);
+                    pVentas.Value = Convert.ToDouble(c.VentasEfectivo);
+                    pEntradas.Value = Convert.ToDouble(c.EntradasEfectivo);
+                    pSalidas.Value = Convert.ToDouble(c.SalidasEfectivo);
+                    pEsperado.Value = Convert.ToDouble(c.TotalEsperado);
+                    pContado.Value = Convert.ToDouble(c.TotalContado);
+                    pObs.Value = c.Observaciones ?? string.Empty;
+
+                    insertCmd.ExecuteNonQuery();
+                }
+
+                tr.Commit();
             }
-            return 0m;
+            catch
+            {
+                tr.Rollback();
+                throw;
+            }
         }
     }
 }

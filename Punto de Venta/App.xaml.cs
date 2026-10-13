@@ -24,7 +24,10 @@ namespace Punto_de_Venta
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
 
             base.OnStartup(e);
-
+            DatabaseHelper.InicializarBaseDeDatos();
+            DatabaseHelper.MigrarDesdeArchivosPlanosSiEsNecesario();
+            DatabaseHelper.MigrarVentasYMovimientosSiEsNecesario();
+            DatabaseHelper.MigrarCortesYPrestamosSiEsNecesario();
             try
             {
                 var config = AppConfig.Load();

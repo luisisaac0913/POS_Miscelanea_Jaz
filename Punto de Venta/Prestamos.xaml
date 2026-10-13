@@ -571,6 +571,58 @@
                                             </Style>
                                         </DataGridTextColumn.ElementStyle>
                                     </DataGridTextColumn>
+                                    <DataGridTemplateColumn Header="ESTADO DE PAGO" Width="160">
+                                        <DataGridTemplateColumn.CellTemplate>
+                                            <DataTemplate>
+                                                <Grid HorizontalAlignment="Stretch" Margin="6,0">
+                                                    <!-- 1. CASO SALDADO: Badge verde 'Liquidado' -->
+                                                    <Border x:Name="LiquidadoBadge" 
+                        CornerRadius="8" 
+                        Padding="10,4" 
+                        HorizontalAlignment="Center" 
+                        Background="#152ECC71" 
+                        BorderBrush="#402ECC71" 
+                        BorderThickness="1" 
+                        Visibility="Collapsed">
+                                                        <TextBlock Text="Liquidado" FontSize="11" FontWeight="Bold" Foreground="#2ECC71" />
+                                                    </Border>
+
+                                                    <!-- 2. CASO ACTIVO: Mini barra de progreso moderna -->
+                                                    <StackPanel x:Name="ActiveProgressPanel" VerticalAlignment="Center">
+                                                        <Grid Margin="0,0,0,3">
+                                                            <TextBlock Text="{Binding PorcentajeAbonado, StringFormat={}{0}% abonado}" 
+                                   FontSize="11" 
+                                   FontWeight="SemiBold" 
+                                   Foreground="{DynamicResource ThemeMutedForeground}" />
+                                                            <TextBlock Text="{Binding SaldoRestante, StringFormat={}{0:C2}}" 
+                                   FontSize="11" 
+                                   FontWeight="Bold" 
+                                   Foreground="#F39C12" 
+                                   HorizontalAlignment="Right" />
+                                                        </Grid>
+
+                                                        <!-- Barra de progreso con esquinas redondeadas -->
+                                                        <Border Background="#15000000" CornerRadius="3" Height="6" ClipToBounds="True">
+                                                            <ProgressBar Value="{Binding PorcentajeAbonado, Mode=OneWay}" 
+                                     Maximum="100" 
+                                     Height="6" 
+                                     BorderThickness="0" 
+                                     Foreground="{DynamicResource ThemeAccent}" 
+                                     Background="Transparent" />
+                                                        </Border>
+                                                    </StackPanel>
+                                                </Grid>
+
+                                                <!-- Triggers para alternar entre el badge o la barra -->
+                                                <DataTemplate.Triggers>
+                                                    <DataTrigger Binding="{Binding SaldoRestante}" Value="0">
+                                                        <Setter TargetName="LiquidadoBadge" Property="Visibility" Value="Visible" />
+                                                        <Setter TargetName="ActiveProgressPanel" Property="Visibility" Value="Collapsed" />
+                                                    </DataTrigger>
+                                                </DataTemplate.Triggers>
+                                            </DataTemplate>
+                                        </DataGridTemplateColumn.CellTemplate>
+                                    </DataGridTemplateColumn>
                                     <DataGridTextColumn Header="TELEFONO" Binding="{Binding Telefono}" Width="105" />
                                     <DataGridTextColumn Header="CONCEPTO" Binding="{Binding Concepto}" Width="1.4*" />
                                     <DataGridTextColumn Header="DEUDA RESTANTE" Binding="{Binding SaldoRestante, StringFormat={}{0:C2}}" Width="1.1*">

@@ -12,7 +12,9 @@ namespace Punto_de_Venta
         private string _concepto = string.Empty;
         private decimal _montoOriginal;
         private decimal _totalAbonado;
-
+        public double PorcentajeAbonado => MontoOriginal > 0
+    ? (double)Math.Min(100m, Math.Round((TotalAbonado / MontoOriginal) * 100m, 1))
+    : 100.0;
         public int Id { get; set; }
         public string Nombre
         {

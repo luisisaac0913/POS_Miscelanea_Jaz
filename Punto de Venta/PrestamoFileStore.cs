@@ -1,182 +1,144 @@
+using Microsoft.Data.Sqlite;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
-using System.IO;
 using System.Linq;
 
 namespace Punto_de_Venta
 {
     public static class PrestamoFileStore
     {
-        private static readonly CultureInfo InvCulture = CultureInfo.InvariantCulture;
-
-        public static string FilePath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz",
-            "prestamos.txt");
-
-        public static string AbonosFilePath => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz",
-            "abonos_prestamos.txt");
-
         public static List<Deudor> Load()
         {
-            if (!File.Exists(FilePath))
+            var deudores = new Dictionary<int, Deudor>();
+
+            using var conn = DatabaseHelper.GetConnection();
+
+            // 1. Cargar Deudores
+            using (var cmd = conn.CreateCommand())
             {
-                return [];
-            }
-
-            var debtors = new List<Deudor>();
-            var ids = new HashSet<int>();
-            var lines = File.ReadAllLines(FilePath);
-
-            for (var index = 0; index < lines.Length; index++)
-            {
-                var line = lines[index];
-                if (string.IsNullOrWhiteSpace(line)) continue;
-
-                var parts = line.Split(new[] { "//" }, StringSplitOptions.None);
-                if (parts.Length < 6 ||
-                    !int.TryParse(parts[0].Trim(), NumberStyles.None, InvCulture, out var id) || id <= 0 ||
-                    string.IsNullOrWhiteSpace(parts[1]))
+                cmd.CommandText = "SELECT Id, Nombre, Telefono, Concepto, MontoOriginal, TotalAbonado FROM Deudores ORDER BY Id ASC;";
+                using var reader = cmd.ExecuteReader();
+                while (reader.Read())
                 {
-                    throw new InvalidDataException($"Formato invalido en la linea {index + 1} de prestamos.txt.");
-                }
+                    var id = reader.GetInt32(0);
+                    var nom = reader.GetString(1);
+                    var tel = reader.IsDBNull(2) ? string.Empty : reader.GetString(2);
+                    var con = reader.IsDBNull(3) ? string.Empty : reader.GetString(3);
+                    var monto = Convert.ToDecimal(reader.GetDouble(4));
+                    var abonado = Convert.ToDecimal(reader.GetDouble(5));
 
-                var original = ParseAmount(parts[3], index + 1, "monto original");
-                var paid = ParseAmount(parts[4], index + 1, "total abonado");
-                var remaining = ParseAmount(parts[5], index + 1, "saldo restante");
-                var telefono = parts.Length >= 7 ? parts[6].Trim() : string.Empty;
-
-                if (original < 0 || paid < 0 || paid > original || remaining < 0)
-                {
-                    throw new InvalidDataException($"Los saldos no coinciden en la linea {index + 1} de prestamos.txt.");
-                }
-
-                if (!ids.Add(id))
-                {
-                    throw new InvalidDataException($"El ID {id} esta duplicado en la linea {index + 1} de prestamos.txt.");
-                }
-
-                debtors.Add(new Deudor
-                {
-                    Id = id,
-                    Nombre = parts[1].Trim(),
-                    Concepto = parts[2].Trim(),
-                    MontoOriginal = original,
-                    TotalAbonado = paid,
-                    Telefono = telefono
-                });
-            }
-
-            var abonosMap = LoadAbonos();
-            foreach (var debtor in debtors)
-            {
-                if (abonosMap.TryGetValue(debtor.Id, out var listaAbonos))
-                {
-                    debtor.Abonos = listaAbonos.OrderByDescending(a => a.Fecha).ToList();
+                    deudores[id] = new Deudor
+                    {
+                        Id = id,
+                        Nombre = nom,
+                        Telefono = tel,
+                        Concepto = con,
+                        MontoOriginal = monto,
+                        TotalAbonado = abonado,
+                        Abonos = []
+                    };
                 }
             }
 
-            return debtors;
+            // 2. Cargar Abonos relacionados
+            using (var cmdAbonos = conn.CreateCommand())
+            {
+                cmdAbonos.CommandText = "SELECT Id, DeudorId, Fecha, Monto FROM Abonos ORDER BY Id DESC;";
+                using var rAb = cmdAbonos.ExecuteReader();
+                while (rAb.Read())
+                {
+                    var deudorId = rAb.GetInt32(1);
+                    if (deudores.TryGetValue(deudorId, out var deudor))
+                    {
+                        var fechaStr = rAb.GetString(2);
+                        if (!DateTime.TryParse(fechaStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var f))
+                        {
+                            DateTime.TryParse(fechaStr, CultureInfo.GetCultureInfo("es-MX"), DateTimeStyles.None, out f);
+                        }
+
+                        deudor.Abonos.Add(new Abono
+                        {
+                            Id = rAb.GetInt32(0),
+                            DeudorId = deudorId,
+                            Fecha = f,
+                            Monto = Convert.ToDecimal(rAb.GetDouble(3))
+                        });
+                    }
+                }
+            }
+
+            return deudores.Values.ToList();
         }
 
         public static void Save(IEnumerable<Deudor> debtors)
         {
-            var debtorList = debtors.ToList();
-            var ids = new HashSet<int>();
+            using var conn = DatabaseHelper.GetConnection();
+            using var tr = conn.BeginTransaction();
 
-            foreach (var debtor in debtorList)
+            try
             {
-                if (debtor.Id <= 0 || !ids.Add(debtor.Id))
+                using (var delCmd = conn.CreateCommand())
                 {
-                    throw new InvalidDataException("Los prestamos deben tener IDs positivos y unicos.");
+                    delCmd.Transaction = tr;
+                    delCmd.CommandText = "DELETE FROM Abonos; DELETE FROM Deudores;";
+                    delCmd.ExecuteNonQuery();
                 }
 
-                if (string.IsNullOrWhiteSpace(debtor.Nombre) ||
-                    ContainsDelimiterOrNewLine(debtor.Nombre) || ContainsDelimiterOrNewLine(debtor.Concepto) ||
-                    ContainsDelimiterOrNewLine(debtor.Telefono) ||
-                    debtor.MontoOriginal < 0 || debtor.TotalAbonado < 0 || debtor.TotalAbonado > debtor.MontoOriginal)
+                using var insertDeudor = conn.CreateCommand();
+                insertDeudor.Transaction = tr;
+                insertDeudor.CommandText = @"
+                    INSERT INTO Deudores (Id, Nombre, Telefono, Concepto, MontoOriginal, TotalAbonado)
+                    VALUES (@id, @nom, @tel, @con, @monto, @abonado);";
+
+                var dId = insertDeudor.Parameters.Add("@id", SqliteType.Integer);
+                var dNom = insertDeudor.Parameters.Add("@nom", SqliteType.Text);
+                var dTel = insertDeudor.Parameters.Add("@tel", SqliteType.Text);
+                var dCon = insertDeudor.Parameters.Add("@con", SqliteType.Text);
+                var dMonto = insertDeudor.Parameters.Add("@monto", SqliteType.Real);
+                var dAbonado = insertDeudor.Parameters.Add("@abonado", SqliteType.Real);
+
+                using var insertAbono = conn.CreateCommand();
+                insertAbono.Transaction = tr;
+                insertAbono.CommandText = @"
+                    INSERT INTO Abonos (Id, DeudorId, Fecha, Monto)
+                    VALUES (@aId, @dId, @fecha, @monto);";
+
+                var aId = insertAbono.Parameters.Add("@aId", SqliteType.Integer);
+                var aDId = insertAbono.Parameters.Add("@dId", SqliteType.Integer);
+                var aFecha = insertAbono.Parameters.Add("@fecha", SqliteType.Text);
+                var aMonto = insertAbono.Parameters.Add("@monto", SqliteType.Real);
+
+                foreach (var debtor in debtors)
                 {
-                    throw new InvalidDataException("El prestamo contiene datos no validos.");
-                }
-            }
+                    dId.Value = debtor.Id;
+                    dNom.Value = debtor.Nombre ?? string.Empty;
+                    dTel.Value = debtor.Telefono ?? string.Empty;
+                    dCon.Value = debtor.Concepto ?? string.Empty;
+                    dMonto.Value = Convert.ToDouble(debtor.MontoOriginal);
+                    dAbonado.Value = Convert.ToDouble(debtor.TotalAbonado);
+                    insertDeudor.ExecuteNonQuery();
 
-            var lines = debtorList.Select(debtor => string.Join("//",
-                debtor.Id.ToString(InvCulture),
-                debtor.Nombre.Trim(),
-                debtor.Concepto.Trim(),
-                debtor.MontoOriginal.ToString(InvCulture),
-                debtor.TotalAbonado.ToString(InvCulture),
-                debtor.SaldoRestante.ToString(InvCulture),
-                debtor.Telefono.Trim()));
-
-            SafeFileStore.WriteAllLinesAtomic(FilePath, lines);
-            SaveAbonos(debtorList.SelectMany(d => d.Abonos));
-        }
-
-        private static Dictionary<int, List<Abono>> LoadAbonos()
-        {
-            var map = new Dictionary<int, List<Abono>>();
-            if (!File.Exists(AbonosFilePath)) return map;
-
-            var lines = File.ReadAllLines(AbonosFilePath);
-            foreach (var line in lines)
-            {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                var parts = line.Split(new[] { "//" }, StringSplitOptions.None);
-                if (parts.Length < 4) continue;
-
-                if (int.TryParse(parts[0].Trim(), NumberStyles.None, InvCulture, out var id) &&
-                    int.TryParse(parts[1].Trim(), NumberStyles.None, InvCulture, out var deudorId) &&
-                    DateTime.TryParse(parts[2].Trim(), InvCulture, DateTimeStyles.RoundtripKind, out var fecha) &&
-                    decimal.TryParse(parts[3].Trim(), NumberStyles.Any, InvCulture, out var monto))
-                {
-                    if (!map.TryGetValue(deudorId, out var list))
+                    if (debtor.Abonos != null)
                     {
-                        list = [];
-                        map[deudorId] = list;
+                        foreach (var ab in debtor.Abonos)
+                        {
+                            aId.Value = ab.Id;
+                            aDId.Value = debtor.Id;
+                            aFecha.Value = ab.Fecha.ToString("o", CultureInfo.InvariantCulture);
+                            aMonto.Value = Convert.ToDouble(ab.Monto);
+                            insertAbono.ExecuteNonQuery();
+                        }
                     }
-                    list.Add(new Abono
-                    {
-                        Id = id,
-                        DeudorId = deudorId,
-                        Fecha = fecha,
-                        Monto = monto
-                    });
                 }
+
+                tr.Commit();
             }
-
-            return map;
-        }
-
-        private static void SaveAbonos(IEnumerable<Abono> abonos)
-        {
-            var lines = abonos.Select(a => string.Join("//",
-                a.Id.ToString(InvCulture),
-                a.DeudorId.ToString(InvCulture),
-                a.Fecha.ToString("o", InvCulture),
-                a.Monto.ToString(InvCulture)));
-
-            SafeFileStore.WriteAllLinesAtomic(AbonosFilePath, lines);
-        }
-
-        private static decimal ParseAmount(string text, int lineNumber, string fieldName)
-        {
-            var value = text.Trim();
-            const NumberStyles styles = NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint;
-            if (decimal.TryParse(value, styles, InvCulture, out var amount) ||
-                decimal.TryParse(value, styles, CultureInfo.GetCultureInfo("es-MX"), out amount) ||
-                decimal.TryParse(value, styles, CultureInfo.GetCultureInfo("es-ES"), out amount))
+            catch
             {
-                return amount;
+                tr.Rollback();
+                throw;
             }
-
-            throw new InvalidDataException($"El campo {fieldName} es invalido en la linea {lineNumber} de prestamos.txt.");
         }
-
-        private static bool ContainsDelimiterOrNewLine(string value) =>
-            value.Contains("//", StringComparison.Ordinal) || value.Contains('\r') || value.Contains('\n');
     }
 }

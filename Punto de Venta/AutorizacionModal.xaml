@@ -11,14 +11,54 @@
         PreviewKeyDown="Window_PreviewKeyDown"
         Loaded="Window_Loaded">
 
-    <Border Background="{DynamicResource ThemeSurfaceBackground}" 
+    <Border x:Name="ModalRootBorder"
+            Background="{DynamicResource ThemeSurfaceBackground}" 
             CornerRadius="18" 
             BorderBrush="{DynamicResource ThemeBorder}" 
             BorderThickness="1" 
-            Margin="10">
+            Margin="10"
+            Opacity="0"
+            RenderTransformOrigin="0.5,0.5">
+        <Border.RenderTransform>
+            <ScaleTransform x:Name="ModalScaleTransform" ScaleX="0.94" ScaleY="0.94" />
+        </Border.RenderTransform>
+
         <Border.Effect>
-            <DropShadowEffect BlurRadius="25" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.25" />
+            <DropShadowEffect BlurRadius="28" ShadowDepth="6" Direction="270" Color="#000000" Opacity="0.25" />
         </Border.Effect>
+
+        <!-- Animación de entrada elástica fluida -->
+        <Border.Triggers>
+            <EventTrigger RoutedEvent="Border.Loaded">
+                <BeginStoryboard>
+                    <Storyboard>
+                        <!-- Desvanecido suave -->
+                        <DoubleAnimation Storyboard.TargetName="ModalRootBorder"
+                                         Storyboard.TargetProperty="Opacity"
+                                         From="0.0" To="1.0"
+                                         Duration="0:0:0.15" />
+                        <!-- Escala elástica horizontal -->
+                        <DoubleAnimation Storyboard.TargetName="ModalScaleTransform"
+                                         Storyboard.TargetProperty="ScaleX"
+                                         From="0.94" To="1.0"
+                                         Duration="0:0:0.20">
+                            <DoubleAnimation.EasingFunction>
+                                <BackEase Amplitude="0.35" EasingMode="EaseOut" />
+                            </DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                        <!-- Escala elástica vertical -->
+                        <DoubleAnimation Storyboard.TargetName="ModalScaleTransform"
+                                         Storyboard.TargetProperty="ScaleY"
+                                         From="0.94" To="1.0"
+                                         Duration="0:0:0.20">
+                            <DoubleAnimation.EasingFunction>
+                                <BackEase Amplitude="0.35" EasingMode="EaseOut" />
+                            </DoubleAnimation.EasingFunction>
+                        </DoubleAnimation>
+                    </Storyboard>
+                </BeginStoryboard>
+            </EventTrigger>
+        </Border.Triggers>
 
         <Grid Margin="24">
             <Grid.RowDefinitions>

@@ -6,14 +6,17 @@
         MinWidth="960" MinHeight="600"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None" 
-    AllowsTransparency="True"
-    Background="Transparent"
-    PreviewKeyDown="Window_PreviewKeyDown"
+        AllowsTransparency="True"
+        Background="Transparent"
+        PreviewKeyDown="Window_PreviewKeyDown"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
         TextOptions.TextRenderingMode="ClearType">
 
     <Window.Resources>
+        <!-- Tokens complementarios -->
+        <SolidColorBrush x:Key="SystemGreen" Color="#34C759" />
+
         <!-- Estilo Tarjetas Adaptable -->
         <Style x:Key="ConfigCardStyle" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
@@ -27,7 +30,7 @@
             </Setter>
         </Style>
 
-        <!-- ■ INICIO: Estilos modernos redondeados para los botones de ventana -->
+        <!-- Botones de ventana estándar -->
         <Style x:Key="WinCaptionButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="36" />
             <Setter Property="Height" Value="28" />
@@ -84,7 +87,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <!-- ■ FIN: Estilos modernos redondeados para los botones de ventana -->
 
         <!-- Botones Menu Lateral iPadOS -->
         <Style x:Key="SidebarButtonStyle" TargetType="Button">
@@ -154,7 +156,7 @@
         </Style>
     </Window.Resources>
 
-    <!-- ■ INICIO: Contenedor con esquinas redondeadas y fondo dinámico -->
+    <!-- Contenedor con esquinas redondeadas y fondo dinámico -->
     <Border Background="{DynamicResource ThemeWindowBackground}" 
             BorderBrush="{DynamicResource ThemeBorder}" 
             BorderThickness="1" 
@@ -164,12 +166,10 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="38" />
-                <!-- ■ Fila 0: Barra superior moderna -->
                 <RowDefinition Height="*" />
-                <!-- ■ Fila 1: Cuerpo de la ventana -->
             </Grid.RowDefinitions>
 
-            <!-- ■ INICIO: Barra de título con el texto 'Configuración' en el centro -->
+            <!-- Barra de título -->
             <Grid Grid.Row="0" 
                   Background="Transparent" 
                   MouseLeftButtonDown="ModernTitleBar_MouseLeftButtonDown">
@@ -179,7 +179,6 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Icono de la ventana -->
                 <Image Grid.Column="0" 
                        Source="/Imagenes/Logo.ico" 
                        Width="16" Height="16" 
@@ -187,9 +186,8 @@
                        VerticalAlignment="Center" 
                        Opacity="0.75" />
 
-                <!-- ■ Título 'Configuración' centrado en la barra -->
                 <TextBlock Grid.Column="1" 
-                           Text="Configuracion" 
+                           Text="Configuración" 
                            FontFamily="Segoe UI Variable, Segoe UI, -apple-system" 
                            FontSize="12" 
                            FontWeight="Bold" 
@@ -198,13 +196,11 @@
                            VerticalAlignment="Center" 
                            IsHitTestVisible="False" />
 
-                <!-- ■ Botones modernos a la derecha -->
                 <StackPanel Grid.Column="2" 
                             Orientation="Horizontal" 
                             VerticalAlignment="Center" 
                             Margin="0,0,6,0">
 
-                    <!-- Minimizar -->
                     <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMinimize_Click" ToolTip="Minimizar">
                         <Path Data="M 0,0 L 10,0" 
                               Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -214,7 +210,6 @@
                               VerticalAlignment="Center" />
                     </Button>
 
-                    <!-- Maximizar / Restaurar -->
                     <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMaximize_Click" ToolTip="Maximizar">
                         <Border Width="10" Height="10" 
                                 BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -222,7 +217,6 @@
                                 CornerRadius="2.5" />
                     </Button>
 
-                    <!-- Cerrar -->
                     <Button Style="{StaticResource WinCaptionCloseButtonStyle}" Click="BtnClose_Click" ToolTip="Cerrar">
                         <Path Data="M 0,0 L 9,9 M 9,0 L 0,9" 
                               Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -233,11 +227,9 @@
                     </Button>
                 </StackPanel>
             </Grid>
-            <!-- ■ FIN: Barra de título moderna -->
 
-            <!-- ■ INICIO: Contenido de la ventana dentro de la Fila 1 -->
+            <!-- Contenido Principal -->
             <Grid Grid.Row="1" Margin="24,10,24,18">
-                <!-- ■ CAMBIO: Se retiró el TextBlock grande 'Configuración' del encabezado anterior -->
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="210" />
                     <ColumnDefinition Width="16" />
@@ -250,10 +242,10 @@
                 <Border Grid.Column="0" Style="{StaticResource ConfigCardStyle}" Padding="12,14">
                     <StackPanel>
                         <TextBlock Text="AJUSTES" FontFamily="Segoe UI Variable, Segoe UI" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" Margin="8,0,0,10" />
-                        <Button x:Name="NavWhatsAppBtn" Content="📱  WhatsApp" Style="{StaticResource SidebarButtonStyle}" Click="NavWhatsApp_Click" />
                         <Button x:Name="NavImpresionBtn" Content="🖨️  Impresión" Style="{StaticResource SidebarButtonStyle}" Click="NavImpresion_Click" />
                         <Button x:Name="NavPersonalizacionBtn" Content="🎨  Personalización" Style="{StaticResource SidebarButtonStyle}" Click="NavPersonalizacion_Click" />
                         <Button x:Name="NavBasculaBtn" Content="⚖️  Báscula digital" Style="{StaticResource SidebarButtonStyle}" Click="NavBascula_Click" />
+                        <Button x:Name="NavWhatsAppBtn" Content="📱  WhatsApp" Style="{StaticResource SidebarButtonStyle}" Click="NavWhatsApp_Click" />
                         <Button x:Name="NavSeguridadBtn" Content="🔒  Caja y Seguridad" Style="{StaticResource SidebarButtonStyle}" Click="NavSeguridad_Click" />
                         <Button x:Name="NavAtajosBtn" Content="⌨️  Atajos de teclado" Style="{StaticResource SidebarButtonStyle}" Click="NavAtajos_Click" />
                     </StackPanel>
@@ -269,31 +261,13 @@
 
                         <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto" Padding="0,0,10,0">
                             <StackPanel>
-                                <!-- ================= SECCIÓN: RECORDATORIOS WHATSAPP ================= -->
-                                <StackPanel x:Name="PanelWhatsApp" Visibility="Collapsed">
-                                    <TextBlock Text="Recordatorios de Cobro por WhatsApp" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,6" />
-                                    <TextBlock Text="Personaliza el mensaje que se enviará a los clientes con saldo pendiente." FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,0,0,14" />
 
-                                    <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="12" Padding="14" Margin="0,0,0,14">
-                                        <StackPanel>
-                                            <TextBlock Text="Variables disponibles para el mensaje:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeAccent}" Margin="0,0,0,6" />
-                                            <TextBlock Text="{}{CLIENTE} : Nombre del deudor" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
-                                            <TextBlock Text="{}{SALDO} : Saldo que debe actualmente" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
-                                            <TextBlock Text="{}{CONCEPTO} : Lo que se llevó fiado" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
-                                            <TextBlock Text="{}{NEGOCIO} : Nombre de tu tienda" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
-                                        </StackPanel>
-                                    </Border>
-
-                                    <TextBlock Text="Plantilla del mensaje" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
-                                    <TextBox x:Name="WhatsAppTemplateBox" Style="{StaticResource FormTextBoxStyle}" Height="90" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="10,6" Margin="0,0,0,14" />
-                                </StackPanel>
-
-                                <!-- ================= SECCIÓN 1: IMPRESIÓN ================= -->
-                                <StackPanel x:Name="PanelImpresion">
+                                <!-- ================= SECCIÓN 1: IMPRESIÓN (Visible por defecto) ================= -->
+                                <StackPanel x:Name="PanelImpresion" Visibility="Visible">
                                     <TextBlock Text="Impresora" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,10" />
 
                                     <TextBlock Text="Impresora destino" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
-                                    <ComboBox x:Name="PrintersComboBox" Height="38" Margin="0,0,0,10" VerticalContentAlignment="Center" FontSize="13" SelectionChanged="PrintersComboBox_SelectionChanged" />
+                                    <ComboBox x:Name="PrintersComboBox" Height="38" Margin="0,0,0,10" VerticalContentAlignment="Center" FontSize="13" />
 
                                     <TextBlock Text="Ancho de papel" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
                                     <ComboBox x:Name="PaperWidthComboBox" Height="38" Margin="0,0,0,12" VerticalContentAlignment="Center" FontSize="13" SelectionChanged="PaperWidthComboBox_SelectionChanged">
@@ -307,13 +281,13 @@
                                     <TextBlock Text="Nombre del negocio" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
                                     <TextBox x:Name="BusinessNameBox" Style="{StaticResource FormTextBoxStyle}" Margin="0,0,0,10" TextChanged="TicketField_TextChanged" />
 
-                                    <TextBlock Text="Subtítulo" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
+                                    <TextBlock Text="Subtítulo / Giro" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
                                     <TextBox x:Name="BusinessSubtitleBox" Style="{StaticResource FormTextBoxStyle}" Margin="0,0,0,10" TextChanged="TicketField_TextChanged" />
 
                                     <TextBlock Text="Dirección" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
                                     <TextBox x:Name="BusinessAddressBox" Style="{StaticResource FormTextBoxStyle}" Margin="0,0,0,10" TextChanged="TicketField_TextChanged" />
 
-                                    <TextBlock Text="Mensaje final" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
+                                    <TextBlock Text="Mensaje al pie del ticket" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
                                     <TextBox x:Name="FooterMessageBox" Style="{StaticResource FormTextBoxStyle}" Height="54" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="10,6" Margin="0,0,0,12" TextChanged="TicketField_TextChanged" />
                                 </StackPanel>
 
@@ -334,15 +308,6 @@
                                             <CheckBox x:Name="DarkModeCheckBox" Grid.Column="1" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
-
-                                    <Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,4,0,12" />
-                                    <TextBlock Text="Formato de visualización" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,10" />
-
-                                    <TextBlock Text="Símbolo de moneda preferido" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
-                                    <ComboBox x:Name="CurrencySymbolComboBox" Height="38" Margin="0,0,0,10" VerticalContentAlignment="Center" FontSize="13">
-                                        <ComboBoxItem Content="$ Mexicano (MXN)" IsSelected="True" />
-                                        <ComboBoxItem Content="$ Estándar (USD)" />
-                                    </ComboBox>
                                 </StackPanel>
 
                                 <!-- ================= SECCIÓN 3: BÁSCULA DIGITAL ================= -->
@@ -431,17 +396,36 @@
                                     </Border>
                                 </StackPanel>
 
+                                <!-- ================= SECCIÓN: RECORDATORIOS WHATSAPP ================= -->
+                                <StackPanel x:Name="PanelWhatsApp" Visibility="Collapsed">
+                                    <TextBlock Text="Recordatorios de Cobro por WhatsApp" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,6" />
+                                    <TextBlock Text="Personaliza el mensaje que se enviará a los clientes con saldo pendiente." FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,0,0,14" />
+
+                                    <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="12" Padding="14" Margin="0,0,0,14">
+                                        <StackPanel>
+                                            <TextBlock Text="Variables disponibles para el mensaje:" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeAccent}" Margin="0,0,0,6" />
+                                            <TextBlock Text="{}{CLIENTE} : Nombre del deudor" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
+                                            <TextBlock Text="{}{SALDO} : Saldo que debe actualmente" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
+                                            <TextBlock Text="{}{CONCEPTO} : Lo que se llevó fiado" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
+                                            <TextBlock Text="{}{NEGOCIO} : Nombre de tu tienda" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
+                                        </StackPanel>
+                                    </Border>
+
+                                    <TextBlock Text="Plantilla del mensaje" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
+                                    <TextBox x:Name="WhatsAppTemplateBox" Style="{StaticResource FormTextBoxStyle}" Height="90" AcceptsReturn="True" TextWrapping="Wrap" VerticalContentAlignment="Top" Padding="10,6" Margin="0,0,0,14" />
+                                </StackPanel>
+
                                 <!-- ================= SECCIÓN 4: CAJA Y SEGURIDAD ================= -->
                                 <StackPanel x:Name="PanelSeguridad" Visibility="Collapsed">
                                     <TextBlock Text="Comportamiento en caja" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,10" />
 
-                                    <CheckBox x:Name="AskBeforePrintCheckBox" Content="Preguntar antes de imprimir al finalizar venta" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,8" />
-                                    <CheckBox x:Name="AutoPrintCheckBox" Content="Imprimir ticket siempre de forma automática" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,14" />
+                                    <CheckBox x:Name="AskBeforePrintCheckBox" Content="Preguntar antes de imprimir al finalizar venta" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,8" Checked="AskBeforePrintCheckBox_Checked" />
+                                    <CheckBox x:Name="AutoPrintCheckBox" Content="Imprimir ticket siempre de forma automática" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,14" Checked="AutoPrintCheckBox_Checked" />
 
                                     <Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,4,0,12" />
                                     <TextBlock Text="Seguridad de acceso" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,10" />
 
-                                    <TextBlock Text="Nuevo PIN de administrador" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
+                                    <TextBlock Text="Nuevo PIN de administrador (mínimo 4 dígitos)" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
                                     <PasswordBox x:Name="NewPinBox" 
                                                  Height="38" 
                                                  Background="{DynamicResource ThemeInputBackground}" 
@@ -463,9 +447,7 @@
                                             <ColumnDefinition Width="10" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-
                                         <TextBox x:Name="BackupFolderBox" Style="{StaticResource FormTextBoxStyle}" IsReadOnly="True" ToolTip="Ruta de almacenamiento de respaldos" />
-
                                         <Button Grid.Column="2" Content="Examinar..." Height="38" Padding="14,0" Background="{DynamicResource ThemeInputBackground}" Foreground="{DynamicResource ThemeTextForeground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" FontFamily="Segoe UI Variable, Segoe UI" FontWeight="SemiBold" Cursor="Hand" Click="BrowseBackupFolder_Click">
                                             <Button.Template>
                                                 <ControlTemplate TargetType="Button">
@@ -483,6 +465,7 @@
                                     <TextBlock Text="Guía de Atajos Rápidos" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
                                     <TextBlock Text="Usa estas combinaciones para operar el punto de venta a máxima velocidad." FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,0,0,14" />
 
+                                    <!-- 1. PANTALLA DE COBRO -->
                                     <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,0,0,12">
                                         <StackPanel>
                                             <TextBlock Text="PANTALLA DE COBRO" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}" Margin="0,0,0,8" />
@@ -495,28 +478,49 @@
                                             </Grid>
 
                                             <Grid Margin="0,5,0,3">
-                                                <TextBlock Text="Añadir producto seleccionado al carrito" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <TextBlock Text="Añadir producto / Seleccionar sugerencia" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
                                                 <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
                                                     <TextBlock Text="Enter" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                                                 </Border>
                                             </Grid>
 
                                             <Grid Margin="0,5,0,3">
-                                                <TextBlock Text="Pesar artículo a granel en báscula" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <TextBlock Text="Navegar lista de sugerencias" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="↑  /  ↓" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,5,0,3">
+                                                <TextBlock Text="Abrir modal de pesaje en báscula" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
                                                 <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
                                                     <TextBlock Text="F8" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                                                 </Border>
                                             </Grid>
 
                                             <Grid Margin="0,5,0,3">
-                                                <TextBlock Text="Abrir ventana de cobro" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <TextBlock Text="Abrir cajón de dinero manualmente" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="F5" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,5,0,3">
+                                                <TextBlock Text="Movimientos de caja (Entradas / Gastos / Fondo)" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="F4" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,5,0,3">
+                                                <TextBlock Text="Abrir ventana de cobro / liquidar" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
                                                 <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
                                                     <TextBlock Text="Shift + Enter" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                                                 </Border>
                                             </Grid>
 
                                             <Grid Margin="0,5,0,3">
-                                                <TextBlock Text="Quitar último producto del carrito" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <TextBlock Text="Quitar producto seleccionado del carrito" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
                                                 <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
                                                     <TextBlock Text="Backspace" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                                                 </Border>
@@ -524,37 +528,80 @@
                                         </StackPanel>
                                     </Border>
 
-                                    <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Padding="14">
+                                    <!-- 2. VENTANA DE COBRO / MODAL DE PAGO -->
+                                    <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Padding="14" Margin="0,0,0,12">
                                         <StackPanel>
-                                            <TextBlock Text="MODAL DE PAGO Y SISTEMA" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}" Margin="0,0,0,8" />
+                                            <TextBlock Text="MODAL DE PAGO" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}" Margin="0,0,0,8" />
 
                                             <Grid Margin="0,3">
-                                                <TextBlock Text="Cobro Efectivo / Tarjeta / Transferencia" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <TextBlock Text="Método de pago: Efectivo" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
                                                 <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
-                                                    <TextBlock Text="F1 / F2 / F3" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                    <TextBlock Text="F1" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                                                 </Border>
                                             </Grid>
 
                                             <Grid Margin="0,5,0,3">
-                                                <TextBlock Text="Fiar venta a libreta de clientes" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <TextBlock Text="Método de pago: Tarjeta" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="F2" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,5,0,3">
+                                                <TextBlock Text="Método de pago: Transferencia" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="F3" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,5,0,3">
+                                                <TextBlock Text="Fiar venta / Registrar préstamo a cliente" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
                                                 <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
                                                     <TextBlock Text="F6" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                                                 </Border>
                                             </Grid>
 
                                             <Grid Margin="0,5,0,3">
-                                                <TextBlock Text="Regresar al menú / Cerrar ventana" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <TextBlock Text="Confirmar y finalizar venta" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
                                                 <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
-                                                    <TextBlock Text="Esc" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                    <TextBlock Text="Enter" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                                                 </Border>
                                             </Grid>
                                         </StackPanel>
                                     </Border>
+
+                                    <!-- 3. INVENTARIO -->
+                                    <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Padding="14">
+                                        <StackPanel>
+                                            <TextBlock Text="INVENTARIO" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}" Margin="0,0,0,8" />
+
+                                            <Grid Margin="0,3">
+                                                <TextBlock Text="Ir directo al buscador de productos" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="Ctrl + F" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                </Border>
+                                            </Grid>
+
+                                            <Grid Margin="0,5,0,3">
+                                                <TextBlock Text="Avanzar campos del formulario / Guardar producto" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="Enter" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                </Border>
+                                            </Grid>
+                                            <Grid Margin="0,5,0,3">
+                                                <TextBlock Text="Imprimir etiqueta con código de barras" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+                                                <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="6" Padding="8,3" HorizontalAlignment="Right">
+                                                    <TextBlock Text="F9" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                </Border>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                    
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>
 
-                        <!-- Accion Guardar -->
+                        <!-- Acción Guardar -->
                         <StackPanel Grid.Row="1" Margin="0,14,0,0">
                             <Button Content="Guardar cambios" Style="{StaticResource PillButtonStyle}" HorizontalAlignment="Left" Click="SaveConfig_Click" />
                             <TextBlock x:Name="StatusMessage" Text="" FontSize="12" Foreground="{DynamicResource ThemeAccent}" Margin="0,6,0,0" />
@@ -578,7 +625,6 @@
                     </Grid>
                 </Border>
             </Grid>
-            <!-- ■ FIN: Contenido de la ventana -->
         </Grid>
     </Border>
 </Window>

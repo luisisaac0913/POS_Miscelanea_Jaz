@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
 using System.ComponentModel;
+using System.Drawing.Printing;
 using System.Globalization;
 using System.Linq;
 using System.Threading.Tasks;
@@ -11,8 +12,9 @@ using System.Windows.Controls;
 using System.Windows.Controls.Primitives;
 using System.Windows.Input;
 using System.Windows.Markup;
+using System.Windows.Media;
+using System.Windows.Media.Animation;
 using System.Windows.Threading;
-
 namespace Punto_de_Venta
 {
     public partial class Cobro : Window
@@ -24,6 +26,16 @@ namespace Punto_de_Venta
         private ItemCarrito? _itemEnPesaje;
 
         public ObservableCollection<ItemCarrito> Cart { get; } = [];
+
+        /// <summary>
+        /// Muestra u oculta el estado vacío según la cantidad de artículos en el carrito.
+        /// </summary>
+        private void ActualizarVisibilidadEmptyState()
+        {
+            // Reemplaza '_itemsCarrito' o 'CartGrid.Items' por la colección real que uses
+            bool tieneArticulos = CartGrid.Items.Count > 0;
+            EmptyCartPanel.Visibility = tieneArticulos ? Visibility.Collapsed : Visibility.Visible;
+        }
         // ■ Arrastre y maximizado con doble clic
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -36,11 +48,105 @@ namespace Punto_de_Venta
                 DragMove();
             }
         }
+        private void AnimarEntradaProducto()
+        {
+            var animX = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 1.06,
+                Duration = TimeSpan.FromMilliseconds(90),
+                AutoReverse = true,
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            var animY = new DoubleAnimation
+            {
+                From = 1.0,
+                To = 1.06,
+                Duration = TimeSpan.FromMilliseconds(90),
+                AutoReverse = true,
+                EasingFunction = new QuadraticEase { EasingMode = EasingMode.EaseOut }
+            };
+
+            TotalScaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
+            TotalScaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
+        }
+        private void ActualizarEstadoHardware()
+        {
+            try
+            {
+                var config = AppConfig.Load();
+
+                // 1. ESTADO DE LA BÁSCULA DIGITAL
+                if (config.BasculaHabilitada)
+                {
+                    var puertosActivos = BasculaService.ObtenerPuertosDisponibles();
+                    bool puertoDetectado = Array.Exists(puertosActivos, p => string.Equals(p, config.BasculaPuerto, StringComparison.OrdinalIgnoreCase));
+
+                    if (puertoDetectado)
+                    {
+                        DotScaleStatus.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113)); // Verde activo (#2ECC71)
+                        StatusScaleBadge.ToolTip = $"Báscula conectada en {config.BasculaPuerto}";
+                    }
+                    else
+                    {
+                        DotScaleStatus.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60)); // Rojo: puerto no detectado (#E74C3C)
+                        StatusScaleBadge.ToolTip = $"Puerto {config.BasculaPuerto} no detectado en el equipo";
+                    }
+                }
+                else
+                {
+                    DotScaleStatus.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(142, 142, 147)); // Gris inactivo (#8E8E93)
+                    StatusScaleBadge.ToolTip = "Báscula deshabilitada en ajustes";
+                }
+
+                // 2. ESTADO DE LA IMPRESORA TÉRMICA
+                bool impresoraValida = false;
+                string nombreImpresora = config.ImpresoraSeleccionada;
+
+                if (!string.IsNullOrWhiteSpace(nombreImpresora))
+                {
+                    foreach (string printer in System.Drawing.Printing.PrinterSettings.InstalledPrinters)
+                    {
+                        if (string.Equals(printer, nombreImpresora, StringComparison.OrdinalIgnoreCase))
+                        {
+                            impresoraValida = true;
+                            break;
+                        }
+                    }
+                }
+                else
+                {
+                    var defaultSettings = new System.Drawing.Printing.PrinterSettings();
+                    impresoraValida = defaultSettings.IsValid;
+                    nombreImpresora = defaultSettings.IsValid ? defaultSettings.PrinterName : "Ninguna";
+                }
+
+                if (impresoraValida)
+                {
+                    DotPrinterStatus.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113)); // Verde activo
+                    StatusPrinterBadge.ToolTip = $"Impresora lista: {nombreImpresora}";
+                }
+                else
+                {
+                    DotPrinterStatus.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60)); // Rojo
+                    StatusPrinterBadge.ToolTip = string.IsNullOrWhiteSpace(nombreImpresora)
+                        ? "No hay impresora térmica configurada ni predeterminada"
+                        : $"Impresora no encontrada: {nombreImpresora}";
+                }
+            }
+            catch
+            {
+                DotScaleStatus.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(142, 142, 147));
+                DotPrinterStatus.Fill = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(142, 142, 147));
+            }
+        }
 
         // ■ Botones de control de ventana
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
         public Cobro()
         {
             InitializeComponent();
@@ -56,6 +162,7 @@ namespace Punto_de_Venta
             _clockTimer.Tick += (_, _) => ((TextBlock)FindName("ClockText")).Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
             Closed += (_, _) => _clockTimer.Stop();
+            ActualizarVisibilidadEmptyState();
         }
 
         #region Módulo de Pesaje con Báscula (F8)
@@ -745,9 +852,10 @@ namespace Punto_de_Venta
             }
         }
 
+        // ■ CORRECCIÓN: Agregado directo en un solo paso sin bucle 'for'
         private void AddSuggestion(Producto product)
         {
-            int cantidad = 1;
+            decimal cantidad = 1m;
 
             if (product.PedirCantidadAlCobrar)
             {
@@ -765,10 +873,8 @@ namespace Punto_de_Venta
                 cantidad = modal.CantidadResult;
             }
 
-            for (int i = 0; i < cantidad; i++)
-            {
-                AddProduct(product);
-            }
+            // Se suma la cantidad total de forma directa y atómica
+            AddProduct(product, cantidad);
 
             var cartGrid = (DataGrid)FindName("CartGrid");
             var cartItem = Cart.FirstOrDefault(item => item.ProductoId == product.Id);
@@ -782,6 +888,8 @@ namespace Punto_de_Venta
             var searchBox = (TextBox)FindName("SearchBox");
             searchBox?.Clear();
             FocusSearch();
+            ActualizarVisibilidadEmptyState();
+            AnimarEntradaProducto();
         }
 
         private void FocusSearch()
@@ -836,7 +944,7 @@ namespace Punto_de_Venta
                 OpenQuickAdd(query);
                 return;
             }
-
+            ActualizarVisibilidadEmptyState();
             AddSuggestion(product);
         }
 
@@ -984,11 +1092,11 @@ namespace Punto_de_Venta
             {
                 return;
             }
-
             selectedItem.PropertyChanged -= CartItem_PropertyChanged;
             Cart.Remove(selectedItem);
             cartGrid.SelectedItem = Cart.LastOrDefault();
             ToastNotification.Show($"Se quitó '{selectedItem.Nombre}' del carrito", ToastType.Info);
+            ActualizarVisibilidadEmptyState();
         }
 
         private void PaymentMethod_Changed(object sender, RoutedEventArgs e)
@@ -1047,25 +1155,98 @@ namespace Punto_de_Venta
         {
             var cashBox = (TextBox)FindName("CashReceivedBox");
             var changeText = (TextBlock)FindName("ChangeText");
+            var changeLabel = (TextBlock)FindName("ChangeLabel");
+            var changeContainer = (Border)FindName("ChangeContainerBorder");
+            var changeScale = (ScaleTransform)FindName("ChangeScaleTransform");
             var paymentMessage = (TextBlock)FindName("PaymentMessage");
             var finalizeButton = (Button)FindName("FinalizeButton");
             var culture = CultureInfo.GetCultureInfo("es-MX");
 
+            if (cashBox == null || changeText == null) return;
+
+            // Validación numérica del texto ingresado
             if (!decimal.TryParse(cashBox.Text, NumberStyles.Number, culture, out var amountReceived))
             {
                 if (!decimal.TryParse(cashBox.Text, NumberStyles.Number, CultureInfo.GetCultureInfo("en-US"), out amountReceived))
                 {
                     changeText.Text = 0m.ToString("C2", culture);
-                    paymentMessage.Text = string.Empty;
-                    finalizeButton.IsEnabled = false;
+                    if (changeLabel != null)
+                    {
+                        changeLabel.Text = "CAMBIO A ENTREGAR";
+                        changeLabel.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
+                    }
+                    if (changeContainer != null)
+                    {
+                        changeContainer.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(20, 46, 204, 113));
+                        changeContainer.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 46, 204, 113));
+                    }
+                    changeText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
+                    if (paymentMessage != null) paymentMessage.Text = string.Empty;
+                    if (finalizeButton != null) finalizeButton.IsEnabled = false;
                     return;
                 }
             }
 
-            var total = Cart.Sum(item => item.Subtotal);
-            finalizeButton.IsEnabled = amountReceived >= total;
-            changeText.Text = Math.Max(0, amountReceived - total).ToString("C2", culture);
-            paymentMessage.Text = amountReceived < total ? "El dinero recibido no cubre el total." : string.Empty;
+            var total = Cart != null ? Cart.Sum(item => item.Subtotal) : 0m;
+
+            // Cubre el monto total
+            if (amountReceived >= total)
+            {
+                var cambio = amountReceived - total;
+                changeText.Text = cambio.ToString("C2", culture);
+                changeText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113)); // Verde esmeralda (#2ECC71)
+
+                if (changeLabel != null)
+                {
+                    changeLabel.Text = "CAMBIO A ENTREGAR";
+                    changeLabel.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
+                }
+
+                if (changeContainer != null)
+                {
+                    changeContainer.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(24, 46, 204, 113));
+                    changeContainer.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(60, 46, 204, 113));
+                }
+
+                if (paymentMessage != null) paymentMessage.Text = string.Empty;
+                if (finalizeButton != null) finalizeButton.IsEnabled = true;
+            }
+            // Falta dinero
+            else
+            {
+                var falta = total - amountReceived;
+                changeText.Text = $"-{falta.ToString("C2", culture)}";
+                changeText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60)); // Rojo suave (#E74C3C)
+
+                if (changeLabel != null)
+                {
+                    changeLabel.Text = "FALTA POR CUBRIR";
+                    changeLabel.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60));
+                }
+
+                if (changeContainer != null)
+                {
+                    changeContainer.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(20, 231, 76, 60));
+                    changeContainer.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 231, 76, 60));
+                }
+
+                if (paymentMessage != null) paymentMessage.Text = "El dinero recibido no cubre el total.";
+                if (finalizeButton != null) finalizeButton.IsEnabled = false;
+            }
+
+            // Micro-animación de escala táctil al teclear
+            if (changeScale != null)
+            {
+                var anim = new System.Windows.Media.Animation.DoubleAnimation
+                {
+                    From = 1.0,
+                    To = 1.04,
+                    Duration = TimeSpan.FromMilliseconds(60),
+                    AutoReverse = true
+                };
+                changeScale.BeginAnimation(ScaleTransform.ScaleXProperty, anim);
+                changeScale.BeginAnimation(ScaleTransform.ScaleYProperty, anim);
+            }
         }
 
         private void FinalizeButton_Click(object sender, RoutedEventArgs e) => FinalizePayment();
@@ -1235,44 +1416,49 @@ namespace Punto_de_Venta
             _purchaseFeedbackVisible = false;
         }
 
-        private void AddProduct(Producto product)
+        // ■ CORRECCIÓN: Sobrecarga con parámetro opcional 'cantidad' para evitar bucles bloqueantes
+        private void AddProduct(Producto product, decimal cantidad = 1m)
         {
             var existingItem = Cart.FirstOrDefault(item => item.ProductoId == product.Id);
             var currentCountInCart = existingItem?.Cantidad ?? 0m;
-            var nextCount = currentCountInCart + 1m;
+            var nextCount = currentCountInCart + cantidad;
 
             var searchMessage = (TextBlock)FindName("SearchMessage");
 
-            if (product.Stock <= 0)
+            // Solo mostrar advertencias de stock si el producto no es tipo recarga/servicio (los que tienen stock infinito o 0)
+            if (!product.PedirCantidadAlCobrar)
             {
-                searchMessage.Text = $"⚠️ '{product.Nombre}' no tiene existencias.";
-                searchMessage.Foreground = System.Windows.Media.Brushes.DarkOrange;
-                _purchaseFeedbackVisible = true;
-                ToastNotification.Show($"'{product.Nombre}' no tiene existencias", ToastType.Warning);
-            }
-            else if (nextCount > product.Stock)
-            {
-                searchMessage.Text = $"⚠️ Supera las existencias en inventario.";
-                searchMessage.Foreground = System.Windows.Media.Brushes.Crimson;
-                _purchaseFeedbackVisible = true;
-                ToastNotification.Show($"Se superan las existencias de '{product.Nombre}'", ToastType.Warning);
-            }
-            else if (nextCount == product.Stock)
-            {
-                searchMessage.Text = $"⚠️ Última pieza.";
-                searchMessage.Foreground = System.Windows.Media.Brushes.DarkGoldenrod;
-                _purchaseFeedbackVisible = true;
-                ToastNotification.Show($"Última pieza de '{product.Nombre}'", ToastType.Info);
-            }
-            else
-            {
-                searchMessage.Text = string.Empty;
-                _purchaseFeedbackVisible = false;
+                if (product.Stock <= 0)
+                {
+                    searchMessage.Text = $"⚠️ '{product.Nombre}' no tiene existencias.";
+                    searchMessage.Foreground = System.Windows.Media.Brushes.DarkOrange;
+                    _purchaseFeedbackVisible = true;
+                    ToastNotification.Show($"'{product.Nombre}' no tiene existencias", ToastType.Warning);
+                }
+                else if (nextCount > product.Stock)
+                {
+                    searchMessage.Text = $"⚠️ Supera las existencias en inventario.";
+                    searchMessage.Foreground = System.Windows.Media.Brushes.Crimson;
+                    _purchaseFeedbackVisible = true;
+                    ToastNotification.Show($"Se superan las existencias de '{product.Nombre}'", ToastType.Warning);
+                }
+                else if (nextCount == product.Stock)
+                {
+                    searchMessage.Text = $"⚠️ Última pieza.";
+                    searchMessage.Foreground = System.Windows.Media.Brushes.DarkGoldenrod;
+                    _purchaseFeedbackVisible = true;
+                    ToastNotification.Show($"Última pieza de '{product.Nombre}'", ToastType.Info);
+                }
+                else
+                {
+                    searchMessage.Text = string.Empty;
+                    _purchaseFeedbackVisible = false;
+                }
             }
 
             if (existingItem != null)
             {
-                existingItem.Cantidad += 1m;
+                existingItem.Cantidad += cantidad;
                 RefreshSummary();
                 return;
             }
@@ -1286,9 +1472,9 @@ namespace Punto_de_Venta
                 Ganancia = product.Ganancia,
                 Precio = product.Precio,
                 Categoria = string.IsNullOrWhiteSpace(product.Categoria) ? "N/A" : product.Categoria,
-                Cantidad = 1m
+                Cantidad = cantidad
             };
-
+            ActualizarVisibilidadEmptyState();
             newItem.PropertyChanged += CartItem_PropertyChanged;
             Cart.Add(newItem);
             RefreshSummary();

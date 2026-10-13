@@ -512,7 +512,6 @@ namespace Punto_de_Venta
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-
         private void CashCloseButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CanWrite())
@@ -521,55 +520,76 @@ namespace Punto_de_Venta
             }
 
             var today = DateTime.Today;
-
-            // 1. OBTENER TODAS LAS VENTAS DEL DÍA (Excluyendo únicamente canceladas)
-            var todayValidSales = Sales
-                .Where(sale => sale.FechaHora.Date == today && sale.Estado != "Cancelada")
-                .ToList();
-
-            // Ventas pendientes por cerrar turno (para cambiar su estado al finalizar)
-            var openSales = todayValidSales
-                .Where(sale => sale.Estado == "Abierta")
-                .ToList();
-
-            var todayCreditSales = todayValidSales
-                .Where(sale => sale.Estado == "Fiado" || sale.MetodoPago == "Fiado")
-                .ToList();
-
-            // 2. AGRUPAR IMPORTES POR MÉTODO DE PAGO REAL
-            var cashSales = todayValidSales
-                .Where(s => s.Estado != "Fiado" && s.MetodoPago.Equals("Efectivo", StringComparison.OrdinalIgnoreCase))
-                .Sum(s => s.Total);
-
-            var cardSales = todayValidSales
-                .Where(s => s.Estado != "Fiado" && s.MetodoPago.Equals("Tarjeta", StringComparison.OrdinalIgnoreCase))
-                .Sum(s => s.Total);
-
-            var transferSales = todayValidSales
-                .Where(s => s.Estado != "Fiado" && s.MetodoPago.Equals("Transferencia", StringComparison.OrdinalIgnoreCase))
-                .Sum(s => s.Total);
-
-            var creditSales = todayCreditSales.Sum(s => s.Total);
-
-            // 3. GANANCIA TOTAL DEL DÍA
-            var profitTotal = todayValidSales.Sum(s => s.GananciaTotal);
-
-            // 4. MOVIMIENTOS DE CAJA
-            CargarMovimientosCaja();
-            var todayMovements = _movimientos.Where(m => m.FechaHora.Date == today).ToList();
-
-            var fondo = todayMovements.Where(m => m.Tipo.Equals("Fondo", StringComparison.OrdinalIgnoreCase)).Sum(m => m.Monto);
-            var entradas = todayMovements.Where(m => m.Tipo.Equals("Entrada", StringComparison.OrdinalIgnoreCase)).Sum(m => m.Monto);
-            var salidas = todayMovements.Where(m => m.Tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase) ||
-                                                    m.Tipo.Equals("Gasto", StringComparison.OrdinalIgnoreCase)).Sum(m => m.Monto);
-
-            // TOTAL EN CAJÓN FÍSICO (Efectivo real que debe haber)
-            var totalEnCajon = fondo + cashSales + entradas - salidas;
             var culture = CultureInfo.GetCultureInfo("es-MX");
 
-            if (todayValidSales.Count == 0 && todayMovements.Count == 0)
+            // 1. DETERMINAR INICIO DEL TURNO ACTUAL
+            // Si ya hubo un corte hoy, el turno actual inicia a partir de la fecha/hora de ese corte.
+            var cortesDelDia = CorteCajaFileStore.Load()
+                .Where(c => c.FechaHora.Date == today)
+                .OrderByDescending(c => c.FechaHora)
+                .ToList();
+
+            DateTime inicioTurno = cortesDelDia.Count > 0 ? cortesDelDia.First().FechaHora : today;
+
+            // 2. VENTAS DEL TURNO ACTUAL (Excluyendo canceladas)
+            var turnoValidSales = Sales
+                .Where(sale => sale.FechaHora >= inicioTurno && !string.Equals(sale.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            // Ventas pendientes de cerrar
+            var openSales = turnoValidSales
+                .Where(sale => string.Equals(sale.Estado, "Abierta", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            var turnoCreditSales = turnoValidSales
+                .Where(sale => string.Equals(sale.Estado, "Fiado", StringComparison.OrdinalIgnoreCase) ||
+                               string.Equals(sale.MetodoPago, "Fiado", StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            // 3. AGRUPAR IMPORTES POR MÉTODO DE PAGO
+            var cashSales = turnoValidSales
+                .Where(s => !string.Equals(s.Estado, "Fiado", StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(s.MetodoPago, "Efectivo", StringComparison.OrdinalIgnoreCase))
+                .Sum(s => s.Total);
+
+            var cardSales = turnoValidSales
+                .Where(s => !string.Equals(s.Estado, "Fiado", StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(s.MetodoPago, "Tarjeta", StringComparison.OrdinalIgnoreCase))
+                .Sum(s => s.Total);
+
+            var transferSales = turnoValidSales
+                .Where(s => !string.Equals(s.Estado, "Fiado", StringComparison.OrdinalIgnoreCase) &&
+                            string.Equals(s.MetodoPago, "Transferencia", StringComparison.OrdinalIgnoreCase))
+                .Sum(s => s.Total);
+
+            var creditSales = turnoCreditSales.Sum(s => s.Total);
+            var profitTotal = turnoValidSales.Sum(s => s.GananciaTotal);
+
+            // 4. MOVIMIENTOS DE CAJA DEL TURNO ACTUAL
+            CargarMovimientosCaja();
+            var turnoMovements = _movimientos
+                .Where(m => m.FechaHora >= inicioTurno)
+                .ToList();
+
+            var fondo = turnoMovements
+                .Where(m => string.Equals(m.Tipo, "Fondo", StringComparison.OrdinalIgnoreCase))
+                .Sum(m => m.Monto);
+
+            var entradas = turnoMovements
+                .Where(m => string.Equals(m.Tipo, "Entrada", StringComparison.OrdinalIgnoreCase))
+                .Sum(m => m.Monto);
+
+            var salidas = turnoMovements
+                .Where(m => string.Equals(m.Tipo, "Salida", StringComparison.OrdinalIgnoreCase) ||
+                            string.Equals(m.Tipo, "Gasto", StringComparison.OrdinalIgnoreCase))
+                .Sum(m => m.Monto);
+
+            // TOTAL EN CAJÓN FÍSICO (Efectivo neto esperado)
+            var totalEnCajon = fondo + cashSales + entradas - salidas;
+
+            if (turnoValidSales.Count == 0 && turnoMovements.Count == 0)
             {
-                ToastNotification.Show("No hay ventas registradas ni movimientos para corte hoy", ToastType.Info);
+                ToastNotification.Show("No hay ventas registradas ni movimientos en este turno", ToastType.Info);
                 return;
             }
 
@@ -637,7 +657,7 @@ namespace Punto_de_Venta
                 ToastNotification.Show($"Error al registrar auditoría: {ex.Message}", ToastType.Error);
             }
 
-            // 8. CIERRE DE VENTAS ABIERTAS
+            // 8. CIERRE DE VENTAS DEL TURNO
             if (openSales.Count > 0)
             {
                 foreach (var sale in openSales)

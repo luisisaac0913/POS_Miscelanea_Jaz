@@ -6,9 +6,9 @@
         Icon="/Imagenes/Logo.ico"
         WindowStartupLocation="CenterOwner"
         WindowStyle="None" 
-    AllowsTransparency="True"
-    Background="Transparent"
-    PreviewKeyDown="Window_PreviewKeyDown"
+        AllowsTransparency="True"
+        Background="Transparent"
+        PreviewKeyDown="Window_PreviewKeyDown"
         Loaded="Window_Loaded"
         UseLayoutRounding="True"
         TextOptions.TextFormattingMode="Display"
@@ -21,9 +21,10 @@
 
         <!-- Sombras iOS Adaptadas -->
         <DropShadowEffect x:Key="AppleCardShadow" BlurRadius="20" ShadowDepth="2" Direction="270" Color="#000000" Opacity="0.08" />
+        <DropShadowEffect x:Key="AppleModalShadow" BlurRadius="36" ShadowDepth="8" Direction="270" Color="#000000" Opacity="0.25" />
         <DropShadowEffect x:Key="AppleButtonShadow" BlurRadius="10" ShadowDepth="2" Direction="270" Color="#007AFF" Opacity="0.25" />
 
-        <!-- ■ INICIO: Estilos modernos redondeados para los botones de ventana -->
+        <!-- ■ Estilos modernos redondeados para los botones de ventana -->
         <Style x:Key="WinCaptionButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="36" />
             <Setter Property="Height" Value="28" />
@@ -80,7 +81,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <!-- ■ FIN: Estilos modernos redondeados para los botones de ventana -->
 
         <!-- Contenedor Tarjeta iOS -->
         <Style x:Key="ProductCardStyle" TargetType="Border">
@@ -165,7 +165,7 @@
             </Setter>
         </Style>
 
-        <!-- Botón Primario Añadir (Azul Apple) -->
+        <!-- Botón Primario Añadir -->
         <Style x:Key="PrimaryAddButtonStyle" TargetType="Button" BasedOn="{StaticResource PillButtonStyle}">
             <Setter Property="Background" Value="{DynamicResource ThemeAccent}" />
             <Setter Property="Foreground" Value="White" />
@@ -194,7 +194,7 @@
             </Setter>
         </Style>
 
-        <!-- Botón Destructivo Borrar (Rojo Apple suave) -->
+        <!-- Botón Destructivo Borrar -->
         <Style x:Key="DangerDeleteButtonStyle" TargetType="Button" BasedOn="{StaticResource PillButtonStyle}">
             <Setter Property="Background" Value="#FEE2E2" />
             <Setter Property="Foreground" Value="{StaticResource SystemRed}" />
@@ -222,7 +222,7 @@
             </Setter>
         </Style>
 
-        <!-- Selector de Pestañas Segmentadas iOS (Todos / Stock Bajo / Agotados) -->
+        <!-- Selector de Pestañas Segmentadas iOS -->
         <Style x:Key="SegmentTabStyle" TargetType="RadioButton">
             <Setter Property="Height" Value="38" />
             <Setter Property="Padding" Value="14,0" />
@@ -288,7 +288,6 @@
         </Style>
     </Window.Resources>
 
-    <!-- ■ INICIO: Contenedor con esquinas redondeadas y fondo dinámico -->
     <Border Background="{DynamicResource ThemeWindowBackground}" 
             BorderBrush="{DynamicResource ThemeBorder}" 
             BorderThickness="1" 
@@ -298,12 +297,10 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="38" />
-                <!-- ■ Fila 0: Barra superior moderna -->
                 <RowDefinition Height="*" />
-                <!-- ■ Fila 1: Cuerpo de la ventana -->
             </Grid.RowDefinitions>
 
-            <!-- ■ INICIO: Barra de título con el texto 'Inventario' en el centro -->
+            <!-- Barra de título moderna -->
             <Grid Grid.Row="0" 
                   Background="Transparent" 
                   MouseLeftButtonDown="ModernTitleBar_MouseLeftButtonDown">
@@ -313,7 +310,6 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Icono de la ventana -->
                 <Image Grid.Column="0" 
                        Source="/Imagenes/Logo.ico" 
                        Width="16" Height="16" 
@@ -321,7 +317,6 @@
                        VerticalAlignment="Center" 
                        Opacity="0.75" />
 
-                <!-- ■ Título 'Inventario' centrado en la barra -->
                 <TextBlock Grid.Column="1" 
                            Text="Inventario" 
                            FontFamily="Segoe UI Variable, Segoe UI, -apple-system" 
@@ -332,59 +327,37 @@
                            VerticalAlignment="Center" 
                            IsHitTestVisible="False" />
 
-                <!-- ■ Botones modernos a la derecha -->
                 <StackPanel Grid.Column="2" 
                             Orientation="Horizontal" 
                             VerticalAlignment="Center" 
                             Margin="0,0,6,0">
-
-                    <!-- Minimizar -->
                     <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMinimize_Click" ToolTip="Minimizar">
-                        <Path Data="M 0,0 L 10,0" 
-                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
-                              StrokeThickness="1.5" 
-                              StrokeStartLineCap="Round" 
-                              StrokeEndLineCap="Round" 
-                              VerticalAlignment="Center" />
+                        <Path Data="M 0,0 L 10,0" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" VerticalAlignment="Center" />
                     </Button>
-
-                    <!-- Maximizar / Restaurar -->
                     <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMaximize_Click" ToolTip="Maximizar">
-                        <Border Width="10" Height="10" 
-                                BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
-                                BorderThickness="1.5" 
-                                CornerRadius="2.5" />
+                        <Border Width="10" Height="10" BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" BorderThickness="1.5" CornerRadius="2.5" />
                     </Button>
-
-                    <!-- Cerrar -->
                     <Button Style="{StaticResource WinCaptionCloseButtonStyle}" Click="BtnClose_Click" ToolTip="Cerrar">
-                        <Path Data="M 0,0 L 9,9 M 9,0 L 0,9" 
-                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
-                              StrokeThickness="1.5" 
-                              StrokeStartLineCap="Round" 
-                              StrokeEndLineCap="Round" 
-                              VerticalAlignment="Center" />
+                        <Path Data="M 0,0 L 9,9 M 9,0 L 0,9" Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" StrokeThickness="1.5" StrokeStartLineCap="Round" StrokeEndLineCap="Round" VerticalAlignment="Center" />
                     </Button>
                 </StackPanel>
             </Grid>
-            <!-- ■ FIN: Barra de título moderna -->
 
-            <!-- ■ INICIO: Contenido de la ventana dentro de la Fila 1 -->
+            <!-- Contenido Principal -->
             <Grid Grid.Row="1" Margin="32,10,32,24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                 </Grid.RowDefinitions>
 
-                <!-- 1. Encabezado iOS con reloj alineado a la derecha -->
+                <!-- Encabezado con reloj -->
                 <Grid Grid.Row="0" Margin="0,0,0,18">
-                    <!-- ■ CAMBIO: Se retiró el TextBlock grande 'Inventario' porque ya se ubica en el centro de la barra superior -->
                     <Border HorizontalAlignment="Right" Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="16" Padding="14,8" VerticalAlignment="Center">
                         <TextBlock x:Name="ClockText" Text="6:08 PM" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
                     </Border>
                 </Grid>
 
-                <!-- 2. Estructura Principal -->
+                <!-- Estructura de 2 Columnas -->
                 <Grid Grid.Row="1">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2.1*" />
@@ -392,7 +365,7 @@
                         <ColumnDefinition Width="1*" />
                     </Grid.ColumnDefinitions>
 
-                    <!-- Lado Izquierdo: Buscador + Filtros Rápidos + Tabla -->
+                    <!-- Lado Izquierdo: Buscador + ReStock Rápido + Filtros + Tabla Virtualizada -->
                     <Grid Grid.Column="0">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
@@ -400,24 +373,24 @@
                             <RowDefinition Height="*" />
                         </Grid.RowDefinitions>
 
-                        <!-- Barra Superior: Buscador y Selector Segmentado de Stock -->
+                        <!-- Barra Superior con Botón de Modo ReStock Rápido -->
                         <Grid Grid.Row="0">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="14" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="10" />
                                 <ColumnDefinition Width="Auto" />
                             </Grid.ColumnDefinitions>
 
-                            <!-- Buscador estilo iOS -->
+                            <!-- Buscador -->
                             <Border Grid.Column="0" Height="48" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="14" Padding="14,0">
                                 <Grid VerticalAlignment="Center">
                                     <Grid.ColumnDefinitions>
                                         <ColumnDefinition Width="Auto" />
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
-
                                     <TextBlock Grid.Column="0" Text="🔍" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" Margin="0,0,10,0" />
-
                                     <Grid Grid.Column="1">
                                         <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" Foreground="{DynamicResource ThemeTextForeground}" VerticalContentAlignment="Center" CaretBrush="{DynamicResource ThemeAccent}" TextChanged="SearchBox_TextChanged" AutomationProperties.Name="Buscar por ID, código o nombre" />
                                         <TextBlock x:Name="SearchPlaceholder" Text="id, código o nombre..." FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" IsHitTestVisible="False" />
@@ -425,8 +398,11 @@
                                 </Grid>
                             </Border>
 
+                            <!-- ■ Botón Activador del Modo ReStock Rápido -->
+                            <Button Grid.Column="2" Content="ReStock rapido" Style="{StaticResource PrimaryAddButtonStyle}" Height="48" Padding="16,0" Click="OpenQuickRestockModal_Click" ToolTip="Escanear y reabastecer inventario a gran velocidad" />
+
                             <!-- Selector Segmentado de Filtros de Stock -->
-                            <Border Grid.Column="2" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="13" Padding="4" Height="48">
+                            <Border Grid.Column="4" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="13" Padding="4" Height="48">
                                 <StackPanel Orientation="Horizontal">
                                     <RadioButton x:Name="FilterAllRadio" Content="Todos" IsChecked="True" Style="{StaticResource SegmentTabStyle}" Click="FilterStock_Click" Tag="All" />
                                     <RadioButton x:Name="FilterLowRadio" Content="Stock Bajo" Style="{StaticResource SegmentTabStyle}" Click="FilterStock_Click" Tag="Low" />
@@ -435,9 +411,32 @@
                             </Border>
                         </Grid>
 
-                        <!-- Contenedor DataGrid iOS -->
+                        <!-- ■ DataGrid Optimizado con Virtualización Fluida para 400+ productos -->
                         <Border Grid.Row="2" Style="{StaticResource ProductCardStyle}" Padding="0" ClipToBounds="True">
-                            <DataGrid x:Name="ProductGrid" ItemsSource="{Binding ProductsView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource ThemeBorder}" BorderThickness="0" Background="Transparent" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" RowHeight="52" SelectionUnit="FullRow" SelectionMode="Single" SelectionChanged="ProductGrid_SelectionChanged" EnableRowVirtualization="True" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                            <DataGrid x:Name="ProductGrid" 
+                                      ItemsSource="{Binding ProductsView}" 
+                                      AutoGenerateColumns="False" 
+                                      IsReadOnly="True" 
+                                      CanUserAddRows="False" 
+                                      CanUserDeleteRows="False" 
+                                      CanUserReorderColumns="False" 
+                                      CanUserResizeRows="False" 
+                                      HeadersVisibility="Column" 
+                                      GridLinesVisibility="Horizontal" 
+                                      HorizontalGridLinesBrush="{DynamicResource ThemeBorder}" 
+                                      BorderThickness="0" 
+                                      Background="Transparent" 
+                                      FontFamily="Segoe UI Variable, Segoe UI" 
+                                      FontSize="14" 
+                                      RowHeight="52" 
+                                      SelectionUnit="FullRow" 
+                                      SelectionMode="Single" 
+                                      SelectionChanged="ProductGrid_SelectionChanged" 
+                                      EnableRowVirtualization="True" 
+                                      VirtualizingPanel.IsVirtualizing="True" 
+                                      VirtualizingPanel.VirtualizationMode="Recycling" 
+                                      ScrollViewer.CanContentScroll="True" 
+                                      ScrollViewer.VerticalScrollBarVisibility="Auto">
 
                                 <DataGrid.ColumnHeaderStyle>
                                     <Style TargetType="DataGridColumnHeader">
@@ -493,7 +492,6 @@
                                     <DataGridTextColumn Header="CÓDIGO" Binding="{Binding Codigo}" Width="120" />
                                     <DataGridTextColumn Header="NOMBRE" Binding="{Binding Nombre}" Width="1.2*" />
 
-                                    <!-- Columna Stock con Badges Dinámicos iOS -->
                                     <DataGridTemplateColumn Header="STOCK" Width="100">
                                         <DataGridTemplateColumn.CellTemplate>
                                             <DataTemplate>
@@ -567,7 +565,7 @@
                         </Border>
                     </Grid>
 
-                    <!-- Lado Derecho: Formulario de Producto, Reabastecimiento Rápido y Acciones -->
+                    <!-- Lado Derecho: Formulario de Producto -->
                     <ScrollViewer Grid.Column="2" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel>
                             <Border Style="{StaticResource ProductCardStyle}" Padding="22,20">
@@ -586,12 +584,10 @@
                                             <ColumnDefinition Width="12" />
                                             <ColumnDefinition Width="1.6*" />
                                         </Grid.ColumnDefinitions>
-
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="ID" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
                                             <TextBox x:Name="ProductIdBox" Style="{StaticResource FormTextBoxStyle}" IsReadOnly="True" />
                                         </StackPanel>
-
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Código" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
                                             <TextBox x:Name="ProductCodeBox" Style="{StaticResource FormTextBoxStyle}" KeyDown="ProductCodeBox_KeyDown" />
@@ -609,19 +605,13 @@
                                             <ColumnDefinition Width="12" />
                                             <ColumnDefinition Width="1*" />
                                         </Grid.ColumnDefinitions>
-
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Categoría" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
                                             <TextBox x:Name="ProductCategoryBox" Style="{StaticResource FormTextBoxStyle}" KeyDown="ProductCategoryBox_KeyDown" />
                                         </StackPanel>
-
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Cantidad" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="2,0,0,5" />
-                                            <TextBox x:Name="StockBox" 
-                                                     Style="{StaticResource FormTextBoxStyle}" 
-                                                     Text="0" 
-                                                     HorizontalContentAlignment="Center" 
-                                                     KeyDown="StockBox_KeyDown" />
+                                            <TextBox x:Name="StockBox" Style="{StaticResource FormTextBoxStyle}" Text="0" HorizontalContentAlignment="Center" KeyDown="StockBox_KeyDown" />
                                         </StackPanel>
                                     </Grid>
 
@@ -650,12 +640,10 @@
                                             <ColumnDefinition Width="12" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-
                                         <StackPanel Grid.Column="0">
                                             <TextBlock Text="Costo" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
                                             <TextBox x:Name="ProductCostBox" Style="{StaticResource FormTextBoxStyle}" TextChanged="CostOrMargin_TextChanged" KeyDown="ProductCostBox_KeyDown" />
                                         </StackPanel>
-
                                         <StackPanel Grid.Column="2">
                                             <TextBlock Text="Ganancia" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,5" />
                                             <TextBox x:Name="ProductMarginBox" Style="{StaticResource FormTextBoxStyle}" TextChanged="CostOrMargin_TextChanged" KeyDown="ProductMarginBox_KeyDown" />
@@ -663,13 +651,9 @@
                                     </Grid>
 
                                     <!-- Casilla Pedir Cantidad -->
-                                    <CheckBox x:Name="AskQuantityCheckBox" 
-                                              Content="Pedir cantidad al cobrar" 
-                                              FontSize="13" 
-                                              Foreground="{DynamicResource ThemeTextForeground}" 
-                                              Margin="2,0,0,16" />
+                                    <CheckBox x:Name="AskQuantityCheckBox" Content="Pedir cantidad al cobrar" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" Margin="2,0,0,16" />
 
-                                    <!-- Botones de Acción: AÑADIR, BORRAR, MODIF. -->
+                                    <!-- Botones de Acción -->
                                     <Grid>
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="1.1*" />
@@ -678,35 +662,75 @@
                                             <ColumnDefinition Width="8" />
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
-
                                         <Button Grid.Column="0" Content="AÑADIR" Style="{StaticResource PrimaryAddButtonStyle}" Click="AddButton_Click" />
                                         <Button x:Name="DeleteButton" Grid.Column="2" Content="BORRAR" Style="{StaticResource DangerDeleteButtonStyle}" IsEnabled="False" Click="DeleteButton_Click" />
                                         <Button x:Name="ModifyButton" Grid.Column="4" Content="MODIF." Style="{StaticResource PillButtonStyle}" IsEnabled="False" Click="ModifyButton_Click" />
                                     </Grid>
                                 </StackPanel>
                             </Border>
+                            <Button Content="Limpiar Selección" Style="{StaticResource PillButtonStyle}" Margin="0,12,0,0" Click="ClearSelectionButton_Click" />
 
-                            <!-- Limpiar Selección -->
-                            <Button Content="Limpiar Selección" 
-                                    Style="{StaticResource PillButtonStyle}" 
-                                    Margin="0,12,0,0" 
-                                    Click="ClearSelectionButton_Click" />
-
-                            <!-- Contador de Productos Widget iOS -->
                             <Border Style="{StaticResource ProductCardStyle}" Height="46" Padding="16,0" Margin="0,12,0,16" IsHitTestVisible="False">
-                                <TextBlock x:Name="ProductCountText" 
-                                           Text="Cantidad de prod: 0" 
-                                           FontFamily="Segoe UI Variable, Segoe UI" 
-                                           FontSize="14" 
-                                           FontWeight="SemiBold" 
-                                           Foreground="{DynamicResource ThemeMutedForeground}" 
-                                           VerticalAlignment="Center" />
+                                <TextBlock x:Name="ProductCountText" Text="Cantidad de prod: 0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" />
                             </Border>
                         </StackPanel>
                     </ScrollViewer>
                 </Grid>
             </Grid>
-            <!-- ■ FIN: Contenido de la ventana -->
+
+            <!-- ================= MODAL OVERLAY: RESTOCK RÁPIDO ================= -->
+            <Grid x:Name="QuickRestockOverlay" Grid.RowSpan="2" Background="#66000000" Visibility="Collapsed" Panel.ZIndex="100">
+                <Border Width="460" Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="24" Padding="28,24" HorizontalAlignment="Center" VerticalAlignment="Center" Effect="{StaticResource AppleModalShadow}">
+                    <StackPanel>
+                        <TextBlock Text="⚡ ReStock Rápido" FontFamily="Segoe UI Variable, Segoe UI" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
+                        <TextBlock Text="Escanea el código de barras y añade la cantidad surtida:" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,0,0,16" />
+
+                        <!-- 1. Campo de Código -->
+                        <TextBlock Text="Código del Producto (Escanea aquí)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
+                        <Border Height="44" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,12" Padding="10,0">
+                            <TextBox x:Name="QrScanCodeBox" Background="Transparent" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" VerticalContentAlignment="Center" KeyDown="QrScanCodeBox_KeyDown" />
+                        </Border>
+
+                        <TextBlock x:Name="QrFoundProductLabel" Text="" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}" Margin="2,-6,0,10" MinHeight="16" />
+
+                        <!-- 2. Campo de Cantidad a Sumar -->
+                        <TextBlock Text="Cantidad a Añadir (+)" FontSize="12" FontWeight="SemiBold" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
+                        <Border Height="44" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,14" Padding="10,0">
+                            <TextBox x:Name="QrAddAmountBox" Background="Transparent" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" VerticalContentAlignment="Center" KeyDown="QrAddAmountBox_KeyDown" />
+                        </Border>
+
+                        <TextBlock x:Name="QrStatusMessage" Text="" FontSize="12" Foreground="{StaticResource SystemRed}" MinHeight="16" Margin="0,0,0,12" />
+
+                        <!-- Botones de Acción -->
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="10" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Button Content="CERRAR (Esc)" Height="42" Background="{DynamicResource ThemeInputBackground}" Foreground="{DynamicResource ThemeMutedForeground}" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Cursor="Hand" Click="CloseQuickRestock_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="12">
+                                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+
+                            <Button Grid.Column="2" Content="AÑADIR STOCK" Height="42" Background="{DynamicResource ThemeAccent}" Foreground="White" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="Bold" Cursor="Hand" Click="ConfirmQuickRestock_Click" Effect="{StaticResource AppleButtonShadow}">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="12">
+                                            <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
         </Grid>
     </Border>
 </Window>

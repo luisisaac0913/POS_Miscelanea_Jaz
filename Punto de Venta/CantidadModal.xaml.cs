@@ -1,10 +1,12 @@
 ﻿using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media.Effects;
 
 namespace Punto_de_Venta
 {
     public partial class CantidadModal : Window
     {
+        private BlurEffect? _blurEffect;
         public int CantidadResult { get; private set; } = 1;
         public bool Confirmado { get; private set; }
 
@@ -12,6 +14,27 @@ namespace Punto_de_Venta
         {
             InitializeComponent();
             ProductTitleText.Text = nombreProducto;
+            Loaded += (_, _) =>
+            {
+                if (Owner != null)
+                {
+                    _blurEffect = new BlurEffect
+                    {
+                        Radius = 12,
+                        RenderingBias = RenderingBias.Performance
+                    };
+                    Owner.Effect = _blurEffect;
+                }
+            };
+
+            // Quitar el desenfoque al cerrar
+            Closed += (_, _) =>
+            {
+                if (Owner != null)
+                {
+                    Owner.Effect = null;
+                }
+            };
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e)

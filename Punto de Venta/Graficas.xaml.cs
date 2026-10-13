@@ -30,6 +30,7 @@ namespace Punto_de_Venta
         private ChartView _currentView = ChartView.Finanzas;
 
         public ISeries[] SeriesPrincipal { get; private set; } = [];
+        public ISeries[] SeriesPie { get; private set; } = [];
         public Axis[] EjesXPrincipal { get; private set; } = [];
         public Axis[] EjesYPrincipal { get; private set; } = [];
 
@@ -37,6 +38,7 @@ namespace Punto_de_Venta
         public ObservableCollection<CorteAuditoriaItem> CortesAuditoria { get; } = [];
 
         public event PropertyChangedEventHandler? PropertyChanged;
+
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -52,6 +54,7 @@ namespace Punto_de_Venta
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
         public Graficas()
         {
             InitializeComponent();
@@ -236,6 +239,18 @@ namespace Punto_de_Venta
             RefreshData();
         }
 
+        private void NavHorasBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _currentView = ChartView.HorasPico;
+            RefreshData();
+        }
+
+        private void NavRentabilidadBtn_Click(object sender, RoutedEventArgs e)
+        {
+            _currentView = ChartView.Rentabilidad;
+            RefreshData();
+        }
+
         private void NavCortesBtn_Click(object sender, RoutedEventArgs e)
         {
             _currentView = ChartView.CortesCaja;
@@ -292,8 +307,7 @@ namespace Punto_de_Venta
             KpiTicketPromedio.Text = $"Ticket prom: {ticketPromedio.ToString("C2", _mexicanCulture)}";
             KpiMargenPorcentaje.Text = $"Margen: {margenPct:F1}%";
 
-
-            // 3. ACTUALIZAR ESTILOS DE BOTONES
+            // 2. ACTUALIZAR ESTILOS DE BOTONES
             ActualizarEstiloBotonPeriodo(DayButton, _currentPeriod == Period.Day);
             ActualizarEstiloBotonPeriodo(WeekButton, _currentPeriod == Period.Week);
             ActualizarEstiloBotonPeriodo(MonthButton, _currentPeriod == Period.Month);
@@ -302,36 +316,57 @@ namespace Punto_de_Venta
             ActualizarEstiloBotonSidebar(NavFinanzasBtn, _currentView == ChartView.Finanzas);
             ActualizarEstiloBotonSidebar(NavMetodosBtn, _currentView == ChartView.MetodosPago);
             ActualizarEstiloBotonSidebar(NavCategoriasBtn, _currentView == ChartView.Categorias);
+            ActualizarEstiloBotonSidebar(NavHorasBtn, _currentView == ChartView.HorasPico);
+            ActualizarEstiloBotonSidebar(NavRentabilidadBtn, _currentView == ChartView.Rentabilidad);
             ActualizarEstiloBotonSidebar(NavCortesBtn, _currentView == ChartView.CortesCaja);
 
-            // 4. VISIBILIDAD GRÁFICA VS TABLA AUDITORÍA
+            // 3. VISIBILIDAD DE CONTROLES SEGÚN VISTA
+            MainChartView.Visibility = Visibility.Collapsed;
+            PieChartView.Visibility = Visibility.Collapsed;
+            CortesContainerView.Visibility = Visibility.Collapsed;
+
             if (_currentView == ChartView.CortesCaja)
             {
-                MainChartView.Visibility = Visibility.Collapsed;
                 CortesContainerView.Visibility = Visibility.Visible;
                 CargarTablaCortes(selectedCortes);
+            }
+            else if (_currentView == ChartView.MetodosPago)
+            {
+                PieChartView.Visibility = Visibility.Visible;
+                CargarGraficaMetodosPago(selectedSales);
             }
             else
             {
                 MainChartView.Visibility = Visibility.Visible;
-                CortesContainerView.Visibility = Visibility.Collapsed;
 
                 switch (_currentView)
                 {
                     case ChartView.Finanzas:
                         CargarGraficaFinanciera(totalVentas, totalCosto, totalGanancia, totalGastos);
                         break;
-                    case ChartView.MetodosPago:
-                        CargarGraficaMetodosPago(selectedSales);
-                        break;
                     case ChartView.Categorias:
                         CargarGraficaCategorias(selectedSales);
+                        break;
+                    case ChartView.HorasPico:
+                        CargarGraficaHorasPico(selectedSales);
+                        break;
+                    case ChartView.Rentabilidad:
+                        CargarGraficaRentabilidad(selectedSales);
                         break;
                 }
             }
 
-            // 5. ACTUALIZAR TOP PRODUCTOS
-            CargarTopProductos(selectedSales);
+            // 4. ACTUALIZAR TOP PRODUCTOS (Volumen vs Margen)
+            if (_currentView == ChartView.Rentabilidad)
+            {
+                TopListTitleText.Text = "Top Rentables (Utilidad)";
+                CargarTopProductosPorUtilidad(selectedSales);
+            }
+            else
+            {
+                TopListTitleText.Text = "Top Productos Vendidos";
+                CargarTopProductos(selectedSales);
+            }
         }
 
         private void CargarGraficaFinanciera(decimal venta, decimal costo, decimal ganancia, decimal gastos)
@@ -396,72 +431,51 @@ namespace Punto_de_Venta
 
         private void CargarGraficaMetodosPago(List<Venta> sales)
         {
-            ChartTitleText.Text = "Metodo de pago (Dinero recibido)";
+            ChartTitleText.Text = "Distribución de Dinero Recibido por Método de Pago";
 
             var efectivo = (double)sales.Where(s => s.MetodoPago == "Efectivo").Sum(s => s.Total);
             var tarjeta = (double)sales.Where(s => s.MetodoPago == "Tarjeta").Sum(s => s.Total);
             var transferencia = (double)sales.Where(s => s.MetodoPago == "Transferencia").Sum(s => s.Total);
             var fiado = (double)sales.Where(s => s.Estado == "Fiado" || s.MetodoPago == "Fiado").Sum(s => s.Total);
 
-            SeriesPrincipal =
+            SeriesPie =
             [
-                new ColumnSeries<double>
+                new PieSeries<double>
                 {
                     Name = "Efectivo",
                     Values = [efectivo],
                     Fill = new SolidColorPaint(new SKColor(52, 199, 89)),
-                    MaxBarWidth = 38
+                    InnerRadius = 60
                 },
-                new ColumnSeries<double>
+                new PieSeries<double>
                 {
                     Name = "Tarjeta",
                     Values = [tarjeta],
                     Fill = new SolidColorPaint(new SKColor(0, 122, 255)),
-                    MaxBarWidth = 38
+                    InnerRadius = 60
                 },
-                new ColumnSeries<double>
+                new PieSeries<double>
                 {
                     Name = "Transferencia",
                     Values = [transferencia],
                     Fill = new SolidColorPaint(new SKColor(175, 82, 222)),
-                    MaxBarWidth = 38
+                    InnerRadius = 60
                 },
-                new ColumnSeries<double>
+                new PieSeries<double>
                 {
                     Name = "Fiado",
                     Values = [fiado],
                     Fill = new SolidColorPaint(new SKColor(255, 149, 0)),
-                    MaxBarWidth = 38
+                    InnerRadius = 60
                 }
             ];
 
-            EjesXPrincipal =
-            [
-                new Axis
-                {
-                    Labels = ["Metodos de Pago"],
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 13
-                }
-            ];
-
-            EjesYPrincipal =
-            [
-                new Axis
-                {
-                    MinLimit = 0,
-                    Labeler = v => v.ToString("C0", _mexicanCulture),
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 12
-                }
-            ];
-
-            NotifyChartProperties();
+            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SeriesPie)));
         }
 
         private void CargarGraficaCategorias(List<Venta> sales)
         {
-            ChartTitleText.Text = "Productos mas vendidos";
+            ChartTitleText.Text = "Categorías con Mayor Volumen de Piezas";
 
             var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
@@ -523,6 +537,144 @@ namespace Punto_de_Venta
             ];
 
             NotifyChartProperties();
+        }
+
+        private void CargarGraficaHorasPico(List<Venta> sales)
+        {
+            ChartTitleText.Text = "Horas Pico de Clientes (8:00 AM - 10:00 PM)";
+
+            // Franjas de 8 AM a 10 PM
+            var horas = Enumerable.Range(8, 15).ToArray();
+            var ventasPorHora = new double[horas.Length];
+
+            foreach (var s in sales)
+            {
+                int hora = s.FechaHora.Hour;
+                int idx = Array.IndexOf(horas, hora);
+                if (idx >= 0)
+                {
+                    ventasPorHora[idx] += (double)s.Total;
+                }
+            }
+
+            var etiquetas = horas.Select(h => h > 12 ? $"{h - 12}pm" : (h == 12 ? "12pm" : $"{h}am")).ToArray();
+
+            SeriesPrincipal =
+            [
+                new ColumnSeries<double>
+                {
+                    Name = "Venta en esa Hora",
+                    Values = ventasPorHora,
+                    Fill = new SolidColorPaint(new SKColor(255, 149, 0)),
+                    MaxBarWidth = 26
+                }
+            ];
+
+            EjesXPrincipal =
+            [
+                new Axis
+                {
+                    Labels = etiquetas,
+                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
+                    TextSize = 11
+                }
+            ];
+
+            EjesYPrincipal =
+            [
+                new Axis
+                {
+                    MinLimit = 0,
+                    Labeler = v => v.ToString("C0", _mexicanCulture),
+                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
+                    TextSize = 12
+                }
+            ];
+
+            NotifyChartProperties();
+        }
+
+        private void CargarGraficaRentabilidad(List<Venta> sales)
+        {
+            ChartTitleText.Text = "Top 7 Artículos que Dejan Mayor Ganancia Real ($)";
+
+            var dict = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var s in sales)
+            {
+                foreach (var p in s.Productos)
+                {
+                    decimal margenArticulo = p.Ganancia * p.Cantidad;
+                    dict[p.Nombre] = dict.GetValueOrDefault(p.Nombre) + margenArticulo;
+                }
+            }
+
+            var sorted = dict.OrderByDescending(x => x.Value).Take(7).ToList();
+            if (sorted.Count == 0) sorted.Add(new KeyValuePair<string, decimal>("Sin datos", 0m));
+
+            SeriesPrincipal =
+            [
+                new ColumnSeries<double>
+                {
+                    Name = "Ganancia Generada",
+                    Values = sorted.Select(x => (double)x.Value).ToArray(),
+                    Fill = new SolidColorPaint(new SKColor(52, 199, 89)),
+                    MaxBarWidth = 40
+                }
+            ];
+
+            EjesXPrincipal =
+            [
+                new Axis
+                {
+                    Labels = sorted.Select(x => x.Key).ToArray(),
+                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
+                    TextSize = 12
+                }
+            ];
+
+            EjesYPrincipal =
+            [
+                new Axis
+                {
+                    MinLimit = 0,
+                    Labeler = v => v.ToString("C0", _mexicanCulture),
+                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
+                    TextSize = 12
+                }
+            ];
+
+            NotifyChartProperties();
+        }
+
+        private void CargarTopProductosPorUtilidad(List<Venta> sales)
+        {
+            TopProductos.Clear();
+            var dict = new Dictionary<string, (int Qty, decimal Ganancia)>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var s in sales)
+            {
+                foreach (var p in s.Productos)
+                {
+                    var cur = dict.GetValueOrDefault(p.Nombre);
+                    dict[p.Nombre] = (cur.Qty + p.Cantidad, cur.Ganancia + (p.Ganancia * p.Cantidad));
+                }
+            }
+
+            var top = dict.OrderByDescending(x => x.Value.Ganancia)
+                          .ThenByDescending(x => x.Value.Qty)
+                          .Take(5)
+                          .ToList();
+
+            for (int i = 0; i < top.Count; i++)
+            {
+                TopProductos.Add(new TopProductoItem(i + 1, top[i].Key, top[i].Value.Qty, top[i].Value.Ganancia));
+            }
+
+            for (int i = top.Count; i < 5; i++)
+            {
+                TopProductos.Add(new TopProductoItem(i + 1, "Sin datos", 0, 0m));
+            }
         }
 
         private void CargarTablaCortes(List<CorteCaja> cortes)
@@ -676,7 +828,7 @@ namespace Punto_de_Venta
         }
 
         private enum Period { Day, Week, Month, Year }
-        private enum ChartView { Finanzas, MetodosPago, Categorias, CortesCaja }
+        private enum ChartView { Finanzas, MetodosPago, Categorias, HorasPico, Rentabilidad, CortesCaja }
     }
 
     public sealed record TopProductoItem(int Posicion, string Nombre, int Cantidad, decimal Ingreso);

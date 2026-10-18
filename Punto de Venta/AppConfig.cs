@@ -32,7 +32,7 @@ namespace Punto_de_Venta
 
         private static readonly string ConfigPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz",
+            "POS_DataStorage",
             "config.json"
         );
 

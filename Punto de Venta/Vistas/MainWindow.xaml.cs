@@ -20,6 +20,7 @@ namespace Punto_de_Venta
     /// </summary>
     public partial class MainWindow : Window
     {
+        private bool _isPagina1Visible = true;
         private readonly DispatcherTimer _clockTimer;
         private bool _isShuttingDown;
 
@@ -56,7 +57,56 @@ namespace Punto_de_Venta
             UpdateClock();
             _clockTimer.Start();
         }
+        private void CodigosDeBarras_Click(object sender, RoutedEventArgs e)
+        {
+            var ventanaCodigos = new CodigosBarrasWindow();
 
+            // 1. Heredar el estado exacto (Maximizado o Normal) y dimensiones del menú actual
+            ventanaCodigos.WindowState = this.WindowState;
+            if (this.WindowState == WindowState.Normal)
+            {
+                ventanaCodigos.Top = this.Top;
+                ventanaCodigos.Left = this.Left;
+                ventanaCodigos.Width = this.Width;
+                ventanaCodigos.Height = this.Height;
+            }
+
+            // 2. Ocultar el menú principal (para que solo quede una ventana visible)
+            this.Hide();
+
+            // 3. Mostrar el módulo de códigos de barras
+            ventanaCodigos.ShowDialog();
+
+            // 4. Al cerrar el módulo, recuperar el estado/tamaño por si el usuario lo movió, y volver a mostrar el menú
+            this.WindowState = ventanaCodigos.WindowState;
+            if (ventanaCodigos.WindowState == WindowState.Normal)
+            {
+                this.Top = ventanaCodigos.Top;
+                this.Left = ventanaCodigos.Left;
+                this.Width = ventanaCodigos.Width;
+                this.Height = ventanaCodigos.Height;
+            }
+            this.Show();
+        }
+        private void BtnPaginacion_Click(object sender, RoutedEventArgs e)
+        {
+            _isPagina1Visible = !_isPagina1Visible;
+
+            if (_isPagina1Visible)
+            {
+                ShortcutGridPagina1.Visibility = Visibility.Visible;
+                ShortcutGridPagina2.Visibility = Visibility.Collapsed;
+
+                IconoPaginacion.Text = "→";
+            }
+            else
+            {
+                ShortcutGridPagina1.Visibility = Visibility.Collapsed;
+                ShortcutGridPagina2.Visibility = Visibility.Visible;
+
+                IconoPaginacion.Text = "←";
+            }
+        }
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -182,7 +232,7 @@ namespace Punto_de_Venta
                 Focus();
             }
         }
-
+        #region Bindeo de teclas
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (ExportarOverlay.Visibility == Visibility.Visible)
@@ -234,45 +284,30 @@ namespace Punto_de_Venta
                     break;
             }
         }
-
+#endregion
         #region Importación y Carga de Catálogo
         private void BtnSubirLista_Click(object sender, RoutedEventArgs e)
         {
             var openFileDialog = new OpenFileDialog
             {
                 Filter = "Archivos de texto (*.txt)|*.txt|Todos los archivos (*.*)|*.*",
-                Title = "Seleccionar lista de productos"
+                Title = "Seleccionar lista de productos para importar a SQLite"
             };
 
             if (openFileDialog.ShowDialog() != true) return;
 
             try
             {
-                string carpetaApp = Path.Combine(
-                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-                    "MiscelaneaJaz"
-                );
-                Directory.CreateDirectory(carpetaApp);
-                string rutaDestino = Path.Combine(carpetaApp, "productos.txt");
+                // 1. Leer las líneas del archivo seleccionado por el usuario
+                var lineasNuevas = File.ReadAllLines(openFileDialog.FileName, Encoding.UTF8);
 
-                var lineasNuevas = File.ReadAllLines(openFileDialog.FileName);
-                var productosExistentes = File.Exists(rutaDestino)
-                    ? File.ReadAllLines(rutaDestino).ToList()
-                    : new List<string>();
-
-                var catalogoPorId = new Dictionary<int, Producto>();
-
-                foreach (var linea in productosExistentes)
-                {
-                    if (string.IsNullOrWhiteSpace(linea)) continue;
-                    var prod = ParsearLineaProducto(linea);
-                    if (prod != null && prod.Id > 0)
-                    {
-                        catalogoPorId[prod.Id] = prod;
-                    }
-                }
+                // 2. Cargar el catálogo actual directamente desde SQLite para no perder IDs previos
+                var productosExistentes = Punto_de_Venta.Datos.ProductoDB.Load();
+                var catalogoPorId = productosExistentes.ToDictionary(p => p.Id);
 
                 int maxId = catalogoPorId.Keys.DefaultIfEmpty(0).Max();
+
+                int importadosCount = 0;
 
                 foreach (var linea in lineasNuevas)
                 {
@@ -280,42 +315,40 @@ namespace Punto_de_Venta
                     var prod = ParsearLineaProducto(linea);
                     if (prod == null) continue;
 
-                    if (prod.Id > 0 && catalogoPorId.ContainsKey(prod.Id))
+                    // Si el ID viene en 0 o no existe, generamos un ID autoincremental seguro
+                    if (prod.Id <= 0 || !catalogoPorId.ContainsKey(prod.Id))
                     {
-                        catalogoPorId[prod.Id] = prod;
-                    }
-                    else if (prod.Id <= 0 || catalogoPorId.ContainsKey(prod.Id))
-                    {
-                        maxId++;
-                        prod.Id = maxId;
-                        catalogoPorId[prod.Id] = prod;
+                        // Si el código ya existe, actualizamos en lugar de duplicar
+                        var existentePorCodigo = catalogoPorId.Values.FirstOrDefault(p => !string.IsNullOrEmpty(p.Codigo) && p.Codigo == prod.Codigo);
+                        if (existentePorCodigo != null)
+                        {
+                            prod.Id = existentePorCodigo.Id;
+                            catalogoPorId[prod.Id] = prod;
+                        }
+                        else
+                        {
+                            maxId++;
+                            prod.Id = maxId;
+                            catalogoPorId[prod.Id] = prod;
+                        }
                     }
                     else
                     {
-                        if (prod.Id > maxId) maxId = prod.Id;
+                        // Actualizar el producto existente con los datos nuevos del txt
                         catalogoPorId[prod.Id] = prod;
                     }
+
+                    importadosCount++;
                 }
 
-                var lineasAGuardar = catalogoPorId.Values
-                    .OrderBy(p => p.Id)
-                    .Select(p => string.Join("//",
-                        p.Id.ToString(CultureInfo.InvariantCulture),
-                        p.Codigo.Trim(),
-                        p.Nombre.Trim(),
-                        string.IsNullOrWhiteSpace(p.Categoria) ? "N/A" : p.Categoria.Trim(),
-                        p.Costo.ToString("0.00", CultureInfo.InvariantCulture),
-                        p.Ganancia.ToString("0.00", CultureInfo.InvariantCulture),
-                        p.Precio.ToString("0.00", CultureInfo.InvariantCulture),
-                        p.Stock.ToString(CultureInfo.InvariantCulture),
-                        p.PedirCantidadAlCobrar.ToString().ToLowerInvariant()));
+                // 3. Guardar todo el catálogo actualizado DIRECTAMENTE A LA BASE DE DATOS SQLITE
+                Punto_de_Venta.Datos.ProductoDB.Save(catalogoPorId.Values);
 
-                SafeFileStore.WriteAllLinesAtomic(rutaDestino, lineasAGuardar, Encoding.UTF8);
-                ToastNotification.Show($"Se guardaron {catalogoPorId.Count} productos correctamente", ToastType.Success);
+                ToastNotification.Show($"Se importaron y guardaron {importadosCount} productos en SQLite correctamente", ToastType.Success);
             }
             catch (Exception ex)
             {
-                ToastNotification.Show($"Error al cargar archivo: {ex.Message}", ToastType.Error);
+                ToastNotification.Show($"Error al importar archivo: {ex.Message}", ToastType.Error);
             }
         }
 
@@ -335,8 +368,19 @@ namespace Punto_de_Venta
             decimal precio = 0m;
             int stock = 0;
             bool pedirCantidad = false;
+            bool seVendePorPeso = false; // NUEVO SOPORTE PARA EL ÚLTIMO CAMPO BOOLEANO
 
-            if (partes.Length >= 9)
+            if (partes.Length >= 10)
+            {
+                categoria = string.IsNullOrWhiteSpace(partes[3]) ? "N/A" : partes[3].Trim();
+                costo = ParseDecimalFlexible(partes[4]);
+                ganancia = ParseDecimalFlexible(partes[5]);
+                precio = ParseDecimalFlexible(partes[6]);
+                int.TryParse(partes[7].Trim(), NumberStyles.Integer, CultureInfo.InvariantCulture, out stock);
+                bool.TryParse(partes[8].Trim(), out pedirCantidad);
+                bool.TryParse(partes[9].Trim(), out seVendePorPeso);
+            }
+            else if (partes.Length == 9)
             {
                 categoria = string.IsNullOrWhiteSpace(partes[3]) ? "N/A" : partes[3].Trim();
                 costo = ParseDecimalFlexible(partes[4]);
@@ -393,7 +437,8 @@ namespace Punto_de_Venta
                 Ganancia = ganancia,
                 Precio = precio,
                 Stock = stock,
-                PedirCantidadAlCobrar = pedirCantidad
+                PedirCantidadAlCobrar = pedirCantidad,
+                SeVendePorPeso = seVendePorPeso
             };
         }
 
@@ -408,7 +453,6 @@ namespace Punto_de_Venta
             return 0m;
         }
         #endregion
-
         #region Módulo de Exportación de Reportes
         private void Exportar_Click(object sender, RoutedEventArgs e)
         {
@@ -443,7 +487,7 @@ namespace Punto_de_Venta
                 var hoy = DateTime.Today;
                 var inicioSemana = hoy.AddDays(-6);
 
-                var sales = VentaFileStore.Load()
+                var sales = VentaDB.Load()
                     .Where(sale =>
                     {
                         var fechaLocal = sale.FechaHora.ToLocalTime().Date;
@@ -463,7 +507,7 @@ namespace Punto_de_Venta
         {
             try
             {
-                ExportarArchivo("Catalogo_Productos.txt", CrearReporteProductos(ProductoFileStore.Load()));
+                ExportarArchivo("Catalogo_Productos.txt", CrearReporteProductos(ProductoDB.Load()));
             }
             catch (Exception exception)
             {
@@ -475,7 +519,7 @@ namespace Punto_de_Venta
         {
             try
             {
-                ExportarArchivo("Libreta_Prestamos.txt", CrearReportePrestamos(PrestamoFileStore.Load()));
+                ExportarArchivo("Libreta_Prestamos.txt", CrearReportePrestamos(PrestamoDB.Load()));
             }
             catch (Exception exception)
             {

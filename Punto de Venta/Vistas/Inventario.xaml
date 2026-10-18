@@ -651,8 +651,11 @@
                                     </Grid>
 
                                     <!-- Casilla Pedir Cantidad -->
-                                    <CheckBox x:Name="AskQuantityCheckBox" Content="Pedir cantidad al cobrar" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" Margin="2,0,0,16" />
-
+                                    <!-- Casillas de configuración de cobro -->
+                                    <StackPanel Margin="2,0,0,16">
+                                        <CheckBox x:Name="AskQuantityCheckBox" Content="Pedir piezas manual al cobrar" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,8" />
+                                        <CheckBox x:Name="ScaleWeighCheckBox" Content="Pesable en Bascula" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" />
+                                    </StackPanel>
                                     <!-- Botones de Acción -->
                                     <Grid>
                                         <Grid.ColumnDefinitions>

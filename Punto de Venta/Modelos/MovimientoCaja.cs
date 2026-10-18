@@ -16,7 +16,7 @@ namespace Punto_de_Venta.Modelos
         public string Concepto { get; set; } = string.Empty;
     }
 
-    public static class MovimientoCajaFileStore
+    public static class MovimientoCajaDB
     {
         public static List<MovimientoCaja> Load()
         {

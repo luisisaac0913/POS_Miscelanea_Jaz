@@ -11,7 +11,7 @@ namespace Punto_de_Venta.Servicios
 
         public static string AppDataFolder => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz"
+            "POS_DataStorage"
         );
 
         public static string ObtenerCarpetaRespaldos(string? rutaPersonalizada = null)

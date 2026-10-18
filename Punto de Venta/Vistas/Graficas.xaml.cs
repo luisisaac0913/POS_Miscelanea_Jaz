@@ -27,7 +27,6 @@ namespace Punto_de_Venta
         private readonly List<CorteCaja> _cortes;
         private readonly List<MovimientoCaja> _movimientos;
         private readonly CultureInfo _mexicanCulture = CultureInfo.GetCultureInfo("es-MX");
-
         private Period _currentPeriod = Period.Day;
         private ChartView _currentView = ChartView.Finanzas;
 
@@ -35,24 +34,11 @@ namespace Punto_de_Venta
         public ISeries[] SeriesPie { get; private set; } = [];
         public Axis[] EjesXPrincipal { get; private set; } = [];
         public Axis[] EjesYPrincipal { get; private set; } = [];
-
         public ObservableCollection<TopProductoItem> TopProductos { get; } = [];
         public ObservableCollection<CorteAuditoriaItem> CortesAuditoria { get; } = [];
-
         public event PropertyChangedEventHandler? PropertyChanged;
 
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
-
+        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (e.ClickCount == 2) WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; else DragMove(); }
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
@@ -61,56 +47,15 @@ namespace Punto_de_Venta
         {
             InitializeComponent();
             DataContext = this;
-
-            try
-            {
-                _catalog = ProductoFileStore.Load() ?? [];
-            }
-            catch
-            {
-                _catalog = [];
-            }
-
-            try
-            {
-                _sales = VentaFileStore.Load()
-                    .Where(s => s.Estado != "Cancelada")
-                    .ToList();
-
-                foreach (var sale in _sales)
-                {
-                    HydrateSaleProfit(sale);
-                }
-            }
-            catch (Exception ex)
-            {
-                _sales = [];
-                ToastNotification.Show($"Error al cargar ventas: {ex.Message}", ToastType.Error);
-            }
-
-            try
-            {
-                _cortes = CorteCajaFileStore.Load() ?? [];
-            }
-            catch
-            {
-                _cortes = [];
-            }
-
-            try
-            {
-                _movimientos = MovimientoCajaFileStore.Load() ?? [];
-            }
-            catch
-            {
-                _movimientos = [];
-            }
+            try { _catalog = ProductoDB.Load() ?? []; } catch { _catalog = []; }
+            try { _sales = VentaDB.Load().Where(s => s.Estado != "Cancelada").ToList(); foreach (var sale in _sales) HydrateSaleProfit(sale); } catch (Exception ex) { _sales = []; ToastNotification.Show($"Error al cargar ventas: {ex.Message}", ToastType.Error); }
+            try { _cortes = CorteCajaDB.Load() ?? []; } catch { _cortes = []; }
+            try { _movimientos = MovimientoCajaDB.Load() ?? []; } catch { _movimientos = []; }
 
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
             Closed += (_, _) => _clockTimer.Stop();
-
             RefreshData();
         }
 
@@ -122,15 +67,8 @@ namespace Punto_de_Venta
                 {
                     if (item.Ganancia <= 0)
                     {
-                        var catalogProd = _catalog.FirstOrDefault(p =>
-                            p.Id == item.Id ||
-                            string.Equals(p.Nombre, item.Nombre, StringComparison.OrdinalIgnoreCase));
-
-                        if (catalogProd is not null && catalogProd.Ganancia > 0)
-                        {
-                            item.Costo = catalogProd.Costo;
-                            item.Ganancia = catalogProd.Ganancia;
-                        }
+                        var catalogProd = _catalog.FirstOrDefault(p => p.Id == item.Id || string.Equals(p.Nombre, item.Nombre, StringComparison.OrdinalIgnoreCase));
+                        if (catalogProd is not null && catalogProd.Ganancia > 0) { item.Costo = catalogProd.Costo; item.Ganancia = catalogProd.Ganancia; }
                     }
                 }
             }
@@ -142,510 +80,159 @@ namespace Punto_de_Venta
                     var cost = catalogProd?.Costo ?? 0m;
                     var margin = catalogProd?.Ganancia ?? 0m;
                     var price = catalogProd?.Precio ?? (sale.Total > 0 && sale.CantidadTotal > 0 ? sale.Total / sale.CantidadTotal : 0m);
-
-                    sale.Productos.Add(new DetalleVenta
-                    {
-                        Id = catalogProd?.Id ?? 0,
-                        VentaId = sale.Id,
-                        Nombre = name,
-                        Cantidad = quantity,
-                        Costo = cost,
-                        Ganancia = margin,
-                        Precio = price,
-                        Categoria = catalogProd?.Categoria ?? "N/A"
-                    });
+                    sale.Productos.Add(new DetalleVenta { Id = catalogProd?.Id ?? 0, VentaId = sale.Id, Nombre = name, Cantidad = quantity, Costo = cost, Ganancia = margin, Precio = price, Categoria = catalogProd?.Categoria ?? "N/A" });
                 }
             }
-
             sale.NotifyTotalesChanged();
         }
 
         private void Window_Loaded(object sender, RoutedEventArgs e) => DayButton.Focus();
-
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (HelpOverlay.Visibility == Visibility.Visible && e.Key == Key.Escape)
-            {
-                HelpOverlay.Visibility = Visibility.Collapsed;
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.Escape)
-            {
-                Close();
-                e.Handled = true;
-            }
-        }
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e) { if (HelpOverlay.Visibility == Visibility.Visible && e.Key == Key.Escape) { HelpOverlay.Visibility = Visibility.Collapsed; e.Handled = true; return; } if (e.Key == Key.Escape) { Close(); e.Handled = true; } }
 
         #region Apartado de Ayuda
-        private void HelpButton_Click(object sender, RoutedEventArgs e)
-        {
-            HelpOverlay.Visibility = Visibility.Visible;
-            HelpOverlay.Focus();
-        }
-
-        private void CloseHelp_Click(object sender, RoutedEventArgs e)
-        {
-            HelpOverlay.Visibility = Visibility.Collapsed;
-        }
-
-        private void HelpOverlay_MouseDown(object sender, MouseButtonEventArgs e)
-        {
-            if (ReferenceEquals(e.OriginalSource, HelpOverlay))
-            {
-                HelpOverlay.Visibility = Visibility.Collapsed;
-            }
-        }
+        private void HelpButton_Click(object sender, RoutedEventArgs e) { HelpOverlay.Visibility = Visibility.Visible; HelpOverlay.Focus(); }
+        private void CloseHelp_Click(object sender, RoutedEventArgs e) { HelpOverlay.Visibility = Visibility.Collapsed; }
+        private void HelpOverlay_MouseDown(object sender, MouseButtonEventArgs e) { if (ReferenceEquals(e.OriginalSource, HelpOverlay)) HelpOverlay.Visibility = Visibility.Collapsed; }
         #endregion
 
-        private void DayButton_Click(object sender, RoutedEventArgs e)
-        {
-            _currentPeriod = Period.Day;
-            RefreshData();
-        }
-
-        private void WeekButton_Click(object sender, RoutedEventArgs e)
-        {
-            _currentPeriod = Period.Week;
-            RefreshData();
-        }
-
-        private void MonthButton_Click(object sender, RoutedEventArgs e)
-        {
-            _currentPeriod = Period.Month;
-            RefreshData();
-        }
-
-        private void YearButton_Click(object sender, RoutedEventArgs e)
-        {
-            _currentPeriod = Period.Year;
-            RefreshData();
-        }
-
-        private void NavFinanzas_Click(object sender, RoutedEventArgs e)
-        {
-            _currentView = ChartView.Finanzas;
-            RefreshData();
-        }
-
-        private void NavMetodos_Click(object sender, RoutedEventArgs e)
-        {
-            _currentView = ChartView.MetodosPago;
-            RefreshData();
-        }
-
-        private void NavCategorias_Click(object sender, RoutedEventArgs e)
-        {
-            _currentView = ChartView.Categorias;
-            RefreshData();
-        }
-
-        private void NavHorasBtn_Click(object sender, RoutedEventArgs e)
-        {
-            _currentView = ChartView.HorasPico;
-            RefreshData();
-        }
-
-        private void NavRentabilidadBtn_Click(object sender, RoutedEventArgs e)
-        {
-            _currentView = ChartView.Rentabilidad;
-            RefreshData();
-        }
-
-        private void NavCortesBtn_Click(object sender, RoutedEventArgs e)
-        {
-            _currentView = ChartView.CortesCaja;
-            RefreshData();
-        }
+        private void DayButton_Click(object sender, RoutedEventArgs e) { _currentPeriod = Period.Day; RefreshData(); }
+        private void WeekButton_Click(object sender, RoutedEventArgs e) { _currentPeriod = Period.Week; RefreshData(); }
+        private void MonthButton_Click(object sender, RoutedEventArgs e) { _currentPeriod = Period.Month; RefreshData(); }
+        private void YearButton_Click(object sender, RoutedEventArgs e) { _currentPeriod = Period.Year; RefreshData(); }
+        private void NavFinanzas_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.Finanzas; RefreshData(); }
+        private void NavMetodos_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.MetodosPago; RefreshData(); }
+        private void NavCategorias_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.Categorias; RefreshData(); }
+        private void NavHorasBtn_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.HorasPico; RefreshData(); }
+        private void NavRentabilidadBtn_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.Rentabilidad; RefreshData(); }
+        private void NavCortesBtn_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.CortesCaja; RefreshData(); }
 
         private void RefreshData()
         {
             var today = DateTime.Today;
-            var start = _currentPeriod switch
-            {
-                Period.Day => today,
-                Period.Week => today.AddDays(-6),
-                Period.Month => new DateTime(today.Year, today.Month, 1),
-                Period.Year => new DateTime(today.Year, 1, 1),
-                _ => today
-            };
+            var start = _currentPeriod switch { Period.Day => today, Period.Week => today.AddDays(-6), Period.Month => new DateTime(today.Year, today.Month, 1), Period.Year => new DateTime(today.Year, 1, 1), _ => today };
+            var selectedSales = _sales.Where(s => s.FechaHora.Date >= start && s.FechaHora.Date <= today).ToList();
+            var selectedCortes = _cortes.Where(c => c.FechaHora.Date >= start && c.FechaHora.Date <= today).ToList();
 
-            var selectedSales = _sales.Where(s =>
-            {
-                var fecha = s.FechaHora.Date;
-                return fecha >= start && fecha <= today;
-            }).ToList();
-
-            var selectedCortes = _cortes.Where(c =>
-            {
-                var fecha = c.FechaHora.Date;
-                return fecha >= start && fecha <= today;
-            }).ToList();
-
-            // 1. CÁLCULO DE KPIS CON GASTOS Y BALANCE NETO
             var totalVentas = selectedSales.Sum(s => s.Total);
             var totalGanancia = selectedSales.Sum(s => s.GananciaTotal);
             var totalCosto = Math.Max(0m, totalVentas - totalGanancia);
             var transacciones = selectedSales.Count;
             var ticketPromedio = transacciones > 0 ? totalVentas / transacciones : 0m;
             var margenPct = totalVentas > 0 ? (totalGanancia / totalVentas) * 100m : 0m;
-
-            var totalGastos = _movimientos
-                .Where(m => m.FechaHora.Date >= start && m.FechaHora.Date <= today &&
-                           (m.Tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase) ||
-                            m.Tipo.Equals("Gasto", StringComparison.OrdinalIgnoreCase)))
-                .Sum(m => m.Monto);
-
+            var totalGastos = _movimientos.Where(m => m.FechaHora.Date >= start && m.FechaHora.Date <= today && (m.Tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase) || m.Tipo.Equals("Gasto", StringComparison.OrdinalIgnoreCase))).Sum(m => m.Monto);
             var balanceNeto = totalVentas - totalGastos;
 
-            KpiVentaTotal.Text = totalVentas.ToString("C2", _mexicanCulture);
-            KpiCostoTotal.Text = totalCosto.ToString("C2", _mexicanCulture);
-            KpiGananciaNeta.Text = totalGanancia.ToString("C2", _mexicanCulture);
-            KpiGastosTotal.Text = totalGastos.ToString("C2", _mexicanCulture);
-            KpiBalanceNeto.Text = balanceNeto.ToString("C2", _mexicanCulture);
+            KpiVentaTotal.Text = totalVentas.ToString("C2", _mexicanCulture); KpiCostoTotal.Text = totalCosto.ToString("C2", _mexicanCulture); KpiGananciaNeta.Text = totalGanancia.ToString("C2", _mexicanCulture); KpiGastosTotal.Text = totalGastos.ToString("C2", _mexicanCulture); KpiBalanceNeto.Text = balanceNeto.ToString("C2", _mexicanCulture);
+            KpiTransacciones.Text = $"{transacciones} venta(s)"; KpiTicketPromedio.Text = $"Ticket prom: {ticketPromedio.ToString("C2", _mexicanCulture)}"; KpiMargenPorcentaje.Text = $"Margen: {margenPct:F1}%";
 
-            KpiTransacciones.Text = $"{transacciones} venta(s)";
-            KpiTicketPromedio.Text = $"Ticket prom: {ticketPromedio.ToString("C2", _mexicanCulture)}";
-            KpiMargenPorcentaje.Text = $"Margen: {margenPct:F1}%";
+            ActualizarEstiloBotonPeriodo(DayButton, _currentPeriod == Period.Day); ActualizarEstiloBotonPeriodo(WeekButton, _currentPeriod == Period.Week); ActualizarEstiloBotonPeriodo(MonthButton, _currentPeriod == Period.Month); ActualizarEstiloBotonPeriodo(YearButton, _currentPeriod == Period.Year);
+            ActualizarEstiloBotonSidebar(NavFinanzasBtn, _currentView == ChartView.Finanzas); ActualizarEstiloBotonSidebar(NavMetodosBtn, _currentView == ChartView.MetodosPago); ActualizarEstiloBotonSidebar(NavCategoriasBtn, _currentView == ChartView.Categorias); ActualizarEstiloBotonSidebar(NavHorasBtn, _currentView == ChartView.HorasPico); ActualizarEstiloBotonSidebar(NavRentabilidadBtn, _currentView == ChartView.Rentabilidad); ActualizarEstiloBotonSidebar(NavCortesBtn, _currentView == ChartView.CortesCaja);
 
-            // 2. ACTUALIZAR ESTILOS DE BOTONES
-            ActualizarEstiloBotonPeriodo(DayButton, _currentPeriod == Period.Day);
-            ActualizarEstiloBotonPeriodo(WeekButton, _currentPeriod == Period.Week);
-            ActualizarEstiloBotonPeriodo(MonthButton, _currentPeriod == Period.Month);
-            ActualizarEstiloBotonPeriodo(YearButton, _currentPeriod == Period.Year);
+            MainChartView.Visibility = Visibility.Collapsed; PieChartView.Visibility = Visibility.Collapsed; CortesContainerView.Visibility = Visibility.Collapsed;
 
-            ActualizarEstiloBotonSidebar(NavFinanzasBtn, _currentView == ChartView.Finanzas);
-            ActualizarEstiloBotonSidebar(NavMetodosBtn, _currentView == ChartView.MetodosPago);
-            ActualizarEstiloBotonSidebar(NavCategoriasBtn, _currentView == ChartView.Categorias);
-            ActualizarEstiloBotonSidebar(NavHorasBtn, _currentView == ChartView.HorasPico);
-            ActualizarEstiloBotonSidebar(NavRentabilidadBtn, _currentView == ChartView.Rentabilidad);
-            ActualizarEstiloBotonSidebar(NavCortesBtn, _currentView == ChartView.CortesCaja);
-
-            // 3. VISIBILIDAD DE CONTROLES SEGÚN VISTA
-            MainChartView.Visibility = Visibility.Collapsed;
-            PieChartView.Visibility = Visibility.Collapsed;
-            CortesContainerView.Visibility = Visibility.Collapsed;
-
-            if (_currentView == ChartView.CortesCaja)
-            {
-                CortesContainerView.Visibility = Visibility.Visible;
-                CargarTablaCortes(selectedCortes);
-            }
-            else if (_currentView == ChartView.MetodosPago)
-            {
-                PieChartView.Visibility = Visibility.Visible;
-                CargarGraficaMetodosPago(selectedSales);
-            }
+            if (_currentView == ChartView.CortesCaja) { CortesContainerView.Visibility = Visibility.Visible; CargarTablaCortes(selectedCortes); }
+            else if (_currentView == ChartView.MetodosPago) { PieChartView.Visibility = Visibility.Visible; CargarGraficaMetodosPago(selectedSales); }
             else
             {
                 MainChartView.Visibility = Visibility.Visible;
-
                 switch (_currentView)
                 {
-                    case ChartView.Finanzas:
-                        CargarGraficaFinanciera(totalVentas, totalCosto, totalGanancia, totalGastos);
-                        break;
-                    case ChartView.Categorias:
-                        CargarGraficaCategorias(selectedSales);
-                        break;
-                    case ChartView.HorasPico:
-                        CargarGraficaHorasPico(selectedSales);
-                        break;
-                    case ChartView.Rentabilidad:
-                        CargarGraficaRentabilidad(selectedSales);
-                        break;
+                    case ChartView.Finanzas: CargarGraficaFinanciera(totalVentas, totalCosto, totalGanancia, totalGastos); break;
+                    case ChartView.Categorias: CargarGraficaCategorias(selectedSales); break;
+                    case ChartView.HorasPico: CargarGraficaHorasPico(selectedSales); break;
+                    case ChartView.Rentabilidad: CargarGraficaRentabilidad(selectedSales); break;
                 }
             }
 
-            // 4. ACTUALIZAR TOP PRODUCTOS (Volumen vs Margen)
-            if (_currentView == ChartView.Rentabilidad)
-            {
-                TopListTitleText.Text = "Top Rentables (Utilidad)";
-                CargarTopProductosPorUtilidad(selectedSales);
-            }
-            else
-            {
-                TopListTitleText.Text = "Top Productos Vendidos";
-                CargarTopProductos(selectedSales);
-            }
+            if (_currentView == ChartView.Rentabilidad) { TopListTitleText.Text = "Top Rentables (Utilidad)"; CargarTopProductosPorUtilidad(selectedSales); }
+            else { TopListTitleText.Text = "Top Productos Vendidos"; CargarTopProductos(selectedSales); }
         }
 
         private void CargarGraficaFinanciera(decimal venta, decimal costo, decimal ganancia, decimal gastos)
         {
             ChartTitleText.Text = "Venta Total vs Costo vs Ganancia vs Gastos";
-
-            SeriesPrincipal =
-            [
-                new ColumnSeries<double>
-                {
-                    Name = "Venta Total",
-                    Values = [(double)venta],
-                    Fill = new SolidColorPaint(new SKColor(0, 122, 255)),
-                    MaxBarWidth = 40
-                },
-                new ColumnSeries<double>
-                {
-                    Name = "Inversion",
-                    Values = [(double)costo],
-                    Fill = new SolidColorPaint(new SKColor(142, 142, 147)),
-                    MaxBarWidth = 40
-                },
-                new ColumnSeries<double>
-                {
-                    Name = "Ganancia Bruta",
-                    Values = [(double)ganancia],
-                    Fill = new SolidColorPaint(new SKColor(52, 199, 89)),
-                    MaxBarWidth = 40
-                },
-                new ColumnSeries<double>
-                {
-                    Name = "Gastos de Caja",
-                    Values = [(double)gastos],
-                    Fill = new SolidColorPaint(new SKColor(239, 68, 68)),
-                    MaxBarWidth = 40
-                }
-            ];
-
-            EjesXPrincipal =
-            [
-                new Axis
-                {
-                    Labels = ["Total del Periodo"],
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 13
-                }
-            ];
-
-            EjesYPrincipal =
-            [
-                new Axis
-                {
-                    MinLimit = 0,
-                    Labeler = v => v.ToString("C0", _mexicanCulture),
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 12
-                }
-            ];
-
+            SeriesPrincipal = [new ColumnSeries<double> { Name = "Venta Total", Values = [(double)venta], Fill = new SolidColorPaint(new SKColor(0, 122, 255)), MaxBarWidth = 40 }, new ColumnSeries<double> { Name = "Inversion", Values = [(double)costo], Fill = new SolidColorPaint(new SKColor(142, 142, 147)), MaxBarWidth = 40 }, new ColumnSeries<double> { Name = "Ganancia Bruta", Values = [(double)ganancia], Fill = new SolidColorPaint(new SKColor(52, 199, 89)), MaxBarWidth = 40 }, new ColumnSeries<double> { Name = "Gastos de Caja", Values = [(double)gastos], Fill = new SolidColorPaint(new SKColor(239, 68, 68)), MaxBarWidth = 40 }];
+            EjesXPrincipal = [new Axis { Labels = ["Total del Periodo"], LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()), TextSize = 13 }];
+            EjesYPrincipal = [new Axis { MinLimit = 0, Labeler = v => v.ToString("C0", _mexicanCulture), LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()), TextSize = 12 }];
             NotifyChartProperties();
         }
 
         private void CargarGraficaMetodosPago(List<Venta> sales)
         {
             ChartTitleText.Text = "Distribución de Dinero Recibido por Método de Pago";
+            double efectivo = 0, tarjeta = 0, transferencia = 0, fiado = 0;
 
-            var efectivo = (double)sales.Where(s => s.MetodoPago == "Efectivo").Sum(s => s.Total);
-            var tarjeta = (double)sales.Where(s => s.MetodoPago == "Tarjeta").Sum(s => s.Total);
-            var transferencia = (double)sales.Where(s => s.MetodoPago == "Transferencia").Sum(s => s.Total);
-            var fiado = (double)sales.Where(s => s.Estado == "Fiado" || s.MetodoPago == "Fiado").Sum(s => s.Total);
-
-            SeriesPie =
-            [
-                new PieSeries<double>
+            foreach (var s in sales)
+            {
+                if (s.Estado == "Fiado" || s.MetodoPago == "Fiado") { fiado += (double)s.Total; continue; }
+                if (s.MetodoPago == "Efectivo") efectivo += (double)s.Total;
+                else if (s.MetodoPago == "Tarjeta") tarjeta += (double)s.Total;
+                else if (s.MetodoPago == "Transferencia") transferencia += (double)s.Total;
+                else if (s.MetodoPago == "Mixto")
                 {
-                    Name = "Efectivo",
-                    Values = [efectivo],
-                    Fill = new SolidColorPaint(new SKColor(52, 199, 89)),
-                    InnerRadius = 60
-                },
-                new PieSeries<double>
-                {
-                    Name = "Tarjeta",
-                    Values = [tarjeta],
-                    Fill = new SolidColorPaint(new SKColor(0, 122, 255)),
-                    InnerRadius = 60
-                },
-                new PieSeries<double>
-                {
-                    Name = "Transferencia",
-                    Values = [transferencia],
-                    Fill = new SolidColorPaint(new SKColor(175, 82, 222)),
-                    InnerRadius = 60
-                },
-                new PieSeries<double>
-                {
-                    Name = "Fiado",
-                    Values = [fiado],
-                    Fill = new SolidColorPaint(new SKColor(255, 149, 0)),
-                    InnerRadius = 60
+                    // En mixto, el cambio se le regresa al cliente en efectivo,
+                    // por lo que el "ingreso real en efectivo" es lo que dio menos el cambio.
+                    efectivo += (double)(s.PagoEfectivo - s.Cambio);
+                    tarjeta += (double)s.PagoTarjeta;
+                    transferencia += (double)s.PagoTransferencia;
                 }
-            ];
+            }
 
+            SeriesPie = [
+                new PieSeries<double> { Name = "Efectivo", Values = [efectivo], Fill = new SolidColorPaint(new SKColor(52, 199, 89)), InnerRadius = 60 },
+                new PieSeries<double> { Name = "Tarjeta", Values = [tarjeta], Fill = new SolidColorPaint(new SKColor(0, 122, 255)), InnerRadius = 60 },
+                new PieSeries<double> { Name = "Transferencia", Values = [transferencia], Fill = new SolidColorPaint(new SKColor(175, 82, 222)), InnerRadius = 60 },
+                new PieSeries<double> { Name = "Fiado", Values = [fiado], Fill = new SolidColorPaint(new SKColor(255, 149, 0)), InnerRadius = 60 }
+            ];
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SeriesPie)));
         }
 
         private void CargarGraficaCategorias(List<Venta> sales)
         {
             ChartTitleText.Text = "Categorías con Mayor Volumen de Piezas";
-
             var dict = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
 
             foreach (var s in sales)
             {
-                if (s.Productos.Count > 0)
-                {
-                    foreach (var p in s.Productos)
-                    {
-                        var cat = !string.IsNullOrWhiteSpace(p.Categoria) && p.Categoria != "N/A"
-                            ? p.Categoria.Trim()
-                            : (_catalog.FirstOrDefault(c => c.Id == p.Id)?.Categoria ?? "General");
-
-                        dict[cat] = dict.GetValueOrDefault(cat) + p.Cantidad;
-                    }
-                }
-                else
-                {
-                    foreach (var (name, qty) in ParseLegacySummary(s.ProductosResumen))
-                    {
-                        var cat = _catalog.FirstOrDefault(c => string.Equals(c.Nombre, name, StringComparison.OrdinalIgnoreCase))?.Categoria ?? "General";
-                        dict[cat] = dict.GetValueOrDefault(cat) + qty;
-                    }
-                }
+                if (s.Productos.Count > 0) { foreach (var p in s.Productos) { var cat = !string.IsNullOrWhiteSpace(p.Categoria) && p.Categoria != "N/A" ? p.Categoria.Trim() : (_catalog.FirstOrDefault(c => c.Id == p.Id)?.Categoria ?? "General"); dict[cat] = dict.GetValueOrDefault(cat) + p.Cantidad; } }
+                else { foreach (var (name, qty) in ParseLegacySummary(s.ProductosResumen)) { var cat = _catalog.FirstOrDefault(c => string.Equals(c.Nombre, name, StringComparison.OrdinalIgnoreCase))?.Categoria ?? "General"; dict[cat] = dict.GetValueOrDefault(cat) + qty; } }
             }
 
             var sorted = dict.OrderByDescending(c => c.Value).Take(7).ToList();
             if (sorted.Count == 0) sorted.Add(new KeyValuePair<string, int>("Sin ventas", 0));
 
-            SeriesPrincipal =
-            [
-                new ColumnSeries<double>
-                {
-                    Name = "Piezas Vendidas",
-                    Values = sorted.Select(c => (double)c.Value).ToArray(),
-                    Fill = new SolidColorPaint(new SKColor(0, 122, 255)),
-                    MaxBarWidth = 44
-                }
-            ];
-
-            EjesXPrincipal =
-            [
-                new Axis
-                {
-                    Labels = sorted.Select(c => c.Key).ToArray(),
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 13
-                }
-            ];
-
-            EjesYPrincipal =
-            [
-                new Axis
-                {
-                    MinLimit = 0,
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 12
-                }
-            ];
-
+            SeriesPrincipal = [new ColumnSeries<double> { Name = "Piezas Vendidas", Values = sorted.Select(c => (double)c.Value).ToArray(), Fill = new SolidColorPaint(new SKColor(0, 122, 255)), MaxBarWidth = 44 }];
+            EjesXPrincipal = [new Axis { Labels = sorted.Select(c => c.Key).ToArray(), LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()), TextSize = 13 }];
+            EjesYPrincipal = [new Axis { MinLimit = 0, LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()), TextSize = 12 }];
             NotifyChartProperties();
         }
 
         private void CargarGraficaHorasPico(List<Venta> sales)
         {
             ChartTitleText.Text = "Horas Pico de Clientes (8:00 AM - 10:00 PM)";
-
-            // Franjas de 8 AM a 10 PM
             var horas = Enumerable.Range(8, 15).ToArray();
             var ventasPorHora = new double[horas.Length];
 
-            foreach (var s in sales)
-            {
-                int hora = s.FechaHora.Hour;
-                int idx = Array.IndexOf(horas, hora);
-                if (idx >= 0)
-                {
-                    ventasPorHora[idx] += (double)s.Total;
-                }
-            }
-
+            foreach (var s in sales) { int hora = s.FechaHora.Hour; int idx = Array.IndexOf(horas, hora); if (idx >= 0) ventasPorHora[idx] += (double)s.Total; }
             var etiquetas = horas.Select(h => h > 12 ? $"{h - 12}pm" : (h == 12 ? "12pm" : $"{h}am")).ToArray();
 
-            SeriesPrincipal =
-            [
-                new ColumnSeries<double>
-                {
-                    Name = "Venta en esa Hora",
-                    Values = ventasPorHora,
-                    Fill = new SolidColorPaint(new SKColor(255, 149, 0)),
-                    MaxBarWidth = 26
-                }
-            ];
-
-            EjesXPrincipal =
-            [
-                new Axis
-                {
-                    Labels = etiquetas,
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 11
-                }
-            ];
-
-            EjesYPrincipal =
-            [
-                new Axis
-                {
-                    MinLimit = 0,
-                    Labeler = v => v.ToString("C0", _mexicanCulture),
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 12
-                }
-            ];
-
+            SeriesPrincipal = [new ColumnSeries<double> { Name = "Venta en esa Hora", Values = ventasPorHora, Fill = new SolidColorPaint(new SKColor(255, 149, 0)), MaxBarWidth = 26 }];
+            EjesXPrincipal = [new Axis { Labels = etiquetas, LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()), TextSize = 11 }];
+            EjesYPrincipal = [new Axis { MinLimit = 0, Labeler = v => v.ToString("C0", _mexicanCulture), LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()), TextSize = 12 }];
             NotifyChartProperties();
         }
 
         private void CargarGraficaRentabilidad(List<Venta> sales)
         {
             ChartTitleText.Text = "Top 7 Artículos que Dejan Mayor Ganancia Real ($)";
-
             var dict = new Dictionary<string, decimal>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var s in sales)
-            {
-                foreach (var p in s.Productos)
-                {
-                    decimal margenArticulo = p.Ganancia * p.Cantidad;
-                    dict[p.Nombre] = dict.GetValueOrDefault(p.Nombre) + margenArticulo;
-                }
-            }
-
+            foreach (var s in sales) { foreach (var p in s.Productos) { decimal margenArticulo = p.Ganancia * p.Cantidad; dict[p.Nombre] = dict.GetValueOrDefault(p.Nombre) + margenArticulo; } }
             var sorted = dict.OrderByDescending(x => x.Value).Take(7).ToList();
             if (sorted.Count == 0) sorted.Add(new KeyValuePair<string, decimal>("Sin datos", 0m));
 
-            SeriesPrincipal =
-            [
-                new ColumnSeries<double>
-                {
-                    Name = "Ganancia Generada",
-                    Values = sorted.Select(x => (double)x.Value).ToArray(),
-                    Fill = new SolidColorPaint(new SKColor(52, 199, 89)),
-                    MaxBarWidth = 40
-                }
-            ];
-
-            EjesXPrincipal =
-            [
-                new Axis
-                {
-                    Labels = sorted.Select(x => x.Key).ToArray(),
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 12
-                }
-            ];
-
-            EjesYPrincipal =
-            [
-                new Axis
-                {
-                    MinLimit = 0,
-                    Labeler = v => v.ToString("C0", _mexicanCulture),
-                    LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()),
-                    TextSize = 12
-                }
-            ];
-
+            SeriesPrincipal = [new ColumnSeries<double> { Name = "Ganancia Generada", Values = sorted.Select(x => (double)x.Value).ToArray(), Fill = new SolidColorPaint(new SKColor(52, 199, 89)), MaxBarWidth = 40 }];
+            EjesXPrincipal = [new Axis { Labels = sorted.Select(x => x.Key).ToArray(), LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()), TextSize = 12 }];
+            EjesYPrincipal = [new Axis { MinLimit = 0, Labeler = v => v.ToString("C0", _mexicanCulture), LabelsPaint = new SolidColorPaint(ObtenerColorTextoEje()), TextSize = 12 }];
             NotifyChartProperties();
         }
 
@@ -653,77 +240,26 @@ namespace Punto_de_Venta
         {
             TopProductos.Clear();
             var dict = new Dictionary<string, (int Qty, decimal Ganancia)>(StringComparer.OrdinalIgnoreCase);
-
-            foreach (var s in sales)
-            {
-                foreach (var p in s.Productos)
-                {
-                    var cur = dict.GetValueOrDefault(p.Nombre);
-                    dict[p.Nombre] = (cur.Qty + p.Cantidad, cur.Ganancia + (p.Ganancia * p.Cantidad));
-                }
-            }
-
-            var top = dict.OrderByDescending(x => x.Value.Ganancia)
-                          .ThenByDescending(x => x.Value.Qty)
-                          .Take(5)
-                          .ToList();
-
-            for (int i = 0; i < top.Count; i++)
-            {
-                TopProductos.Add(new TopProductoItem(i + 1, top[i].Key, top[i].Value.Qty, top[i].Value.Ganancia));
-            }
-
-            for (int i = top.Count; i < 5; i++)
-            {
-                TopProductos.Add(new TopProductoItem(i + 1, "Sin datos", 0, 0m));
-            }
+            foreach (var s in sales) { foreach (var p in s.Productos) { var cur = dict.GetValueOrDefault(p.Nombre); dict[p.Nombre] = (cur.Qty + p.Cantidad, cur.Ganancia + (p.Ganancia * p.Cantidad)); } }
+            var top = dict.OrderByDescending(x => x.Value.Ganancia).ThenByDescending(x => x.Value.Qty).Take(5).ToList();
+            for (int i = 0; i < top.Count; i++) TopProductos.Add(new TopProductoItem(i + 1, top[i].Key, top[i].Value.Qty, top[i].Value.Ganancia));
+            for (int i = top.Count; i < 5; i++) TopProductos.Add(new TopProductoItem(i + 1, "Sin datos", 0, 0m));
         }
 
         private void CargarTablaCortes(List<CorteCaja> cortes)
         {
             ChartTitleText.Text = "Historial de Corte de Caja";
             CortesAuditoria.Clear();
-
-            if (cortes.Count == 0)
-            {
-                return;
-            }
+            if (cortes.Count == 0) return;
 
             foreach (var c in cortes.OrderByDescending(x => x.FechaHora))
             {
                 var dif = c.Diferencia;
-                string difTexto;
-                Brush bgBrush;
-                Brush fgBrush;
-
-                if (dif == 0m)
-                {
-                    difTexto = "$0.00 Exacto";
-                    bgBrush = new SolidColorBrush(Color.FromArgb(30, 52, 199, 89));
-                    fgBrush = new SolidColorBrush(Color.FromRgb(40, 160, 70));
-                }
-                else if (dif > 0m)
-                {
-                    difTexto = $"+{dif.ToString("C2", _mexicanCulture)} Sobrante";
-                    bgBrush = new SolidColorBrush(Color.FromArgb(30, 255, 149, 0));
-                    fgBrush = new SolidColorBrush(Color.FromRgb(215, 120, 0));
-                }
-                else
-                {
-                    difTexto = $"{dif.ToString("C2", _mexicanCulture)} Faltante";
-                    bgBrush = new SolidColorBrush(Color.FromArgb(30, 255, 59, 48));
-                    fgBrush = new SolidColorBrush(Color.FromRgb(215, 40, 30));
-                }
-
-                CortesAuditoria.Add(new CorteAuditoriaItem(
-                    c.FechaHora.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture),
-                    $"Turno #{c.Id}",
-                    c.TotalEsperado.ToString("C2", _mexicanCulture),
-                    c.TotalContado.ToString("C2", _mexicanCulture),
-                    difTexto,
-                    bgBrush,
-                    fgBrush
-                ));
+                string difTexto; Brush bgBrush; Brush fgBrush;
+                if (dif == 0m) { difTexto = "$0.00 Exacto"; bgBrush = new SolidColorBrush(Color.FromArgb(30, 52, 199, 89)); fgBrush = new SolidColorBrush(Color.FromRgb(40, 160, 70)); }
+                else if (dif > 0m) { difTexto = $"+{dif.ToString("C2", _mexicanCulture)} Sobrante"; bgBrush = new SolidColorBrush(Color.FromArgb(30, 255, 149, 0)); fgBrush = new SolidColorBrush(Color.FromRgb(215, 120, 0)); }
+                else { difTexto = $"{dif.ToString("C2", _mexicanCulture)} Faltante"; bgBrush = new SolidColorBrush(Color.FromArgb(30, 255, 59, 48)); fgBrush = new SolidColorBrush(Color.FromRgb(215, 40, 30)); }
+                CortesAuditoria.Add(new CorteAuditoriaItem(c.FechaHora.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture), $"Turno #{c.Id}", c.TotalEsperado.ToString("C2", _mexicanCulture), c.TotalContado.ToString("C2", _mexicanCulture), difTexto, bgBrush, fgBrush));
             }
         }
 
@@ -731,102 +267,24 @@ namespace Punto_de_Venta
         {
             TopProductos.Clear();
             var dict = new Dictionary<string, (int Qty, decimal Ingreso)>(StringComparer.OrdinalIgnoreCase);
-
             foreach (var s in sales)
             {
-                if (s.Productos.Count > 0)
-                {
-                    foreach (var p in s.Productos)
-                    {
-                        var cur = dict.GetValueOrDefault(p.Nombre);
-                        dict[p.Nombre] = (cur.Qty + p.Cantidad, cur.Ingreso + (p.Precio * p.Cantidad));
-                    }
-                }
-                else
-                {
-                    foreach (var (name, qty) in ParseLegacySummary(s.ProductosResumen))
-                    {
-                        var cur = dict.GetValueOrDefault(name);
-                        dict[name] = (cur.Qty + qty, cur.Ingreso);
-                    }
-                }
+                if (s.Productos.Count > 0) { foreach (var p in s.Productos) { var cur = dict.GetValueOrDefault(p.Nombre); dict[p.Nombre] = (cur.Qty + p.Cantidad, cur.Ingreso + (p.Precio * p.Cantidad)); } }
+                else { foreach (var (name, qty) in ParseLegacySummary(s.ProductosResumen)) { var cur = dict.GetValueOrDefault(name); dict[name] = (cur.Qty + qty, cur.Ingreso); } }
             }
-
-            var top = dict.OrderByDescending(x => x.Value.Ingreso)
-                          .ThenByDescending(x => x.Value.Qty)
-                          .Take(5)
-                          .ToList();
-
-            for (int i = 0; i < top.Count; i++)
-            {
-                TopProductos.Add(new TopProductoItem(i + 1, top[i].Key, top[i].Value.Qty, top[i].Value.Ingreso));
-            }
-
-            for (int i = top.Count; i < 5; i++)
-            {
-                TopProductos.Add(new TopProductoItem(i + 1, "Sin datos", 0, 0m));
-            }
+            var top = dict.OrderByDescending(x => x.Value.Ingreso).ThenByDescending(x => x.Value.Qty).Take(5).ToList();
+            for (int i = 0; i < top.Count; i++) TopProductos.Add(new TopProductoItem(i + 1, top[i].Key, top[i].Value.Qty, top[i].Value.Ingreso));
+            for (int i = top.Count; i < 5; i++) TopProductos.Add(new TopProductoItem(i + 1, "Sin datos", 0, 0m));
         }
 
-        private void ActualizarEstiloBotonPeriodo(Button btn, bool selected)
-        {
-            if (selected)
-            {
-                btn.SetResourceReference(Button.BackgroundProperty, "ThemeSurfaceBackground");
-                btn.SetResourceReference(Button.ForegroundProperty, "ThemeTextForeground");
-            }
-            else
-            {
-                btn.Background = Brushes.Transparent;
-                btn.SetResourceReference(Button.ForegroundProperty, "ThemeMutedForeground");
-            }
-        }
-
-        private void ActualizarEstiloBotonSidebar(Button btn, bool selected)
-        {
-            if (selected)
-            {
-                btn.SetResourceReference(Button.BackgroundProperty, "ThemeInputBackground");
-                btn.SetResourceReference(Button.ForegroundProperty, "ThemeAccent");
-            }
-            else
-            {
-                btn.Background = Brushes.Transparent;
-                btn.SetResourceReference(Button.ForegroundProperty, "ThemeTextForeground");
-            }
-        }
-
-        private SKColor ObtenerColorTextoEje()
-        {
-            if (Application.Current is App app && app.IsDarkMode)
-            {
-                return new SKColor(245, 245, 247);
-            }
-            return new SKColor(28, 28, 30);
-        }
-
-        private void NotifyChartProperties()
-        {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SeriesPrincipal)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EjesXPrincipal)));
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EjesYPrincipal)));
-        }
-
+        private void ActualizarEstiloBotonPeriodo(Button btn, bool selected) { if (selected) { btn.SetResourceReference(Button.BackgroundProperty, "ThemeSurfaceBackground"); btn.SetResourceReference(Button.ForegroundProperty, "ThemeTextForeground"); } else { btn.Background = Brushes.Transparent; btn.SetResourceReference(Button.ForegroundProperty, "ThemeMutedForeground"); } }
+        private void ActualizarEstiloBotonSidebar(Button btn, bool selected) { if (selected) { btn.SetResourceReference(Button.BackgroundProperty, "ThemeInputBackground"); btn.SetResourceReference(Button.ForegroundProperty, "ThemeAccent"); } else { btn.Background = Brushes.Transparent; btn.SetResourceReference(Button.ForegroundProperty, "ThemeTextForeground"); } }
+        private SKColor ObtenerColorTextoEje() => Application.Current is App app && app.IsDarkMode ? new SKColor(245, 245, 247) : new SKColor(28, 28, 30);
+        private void NotifyChartProperties() { PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(SeriesPrincipal))); PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EjesXPrincipal))); PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(nameof(EjesYPrincipal))); }
         private static IEnumerable<(string Name, int Quantity)> ParseLegacySummary(string summary)
         {
             if (string.IsNullOrWhiteSpace(summary)) yield break;
-            foreach (var entry in summary.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
-            {
-                var match = Regex.Match(entry, @"^(.*?)\s+x(\d+)$", RegexOptions.IgnoreCase);
-                if (match.Success && int.TryParse(match.Groups[2].Value, out var qty))
-                {
-                    yield return (match.Groups[1].Value.Trim(), qty);
-                }
-                else
-                {
-                    yield return (entry.Trim(), 1);
-                }
-            }
+            foreach (var entry in summary.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries)) { var match = Regex.Match(entry, @"^(.*?)\s+x(\d+)$", RegexOptions.IgnoreCase); if (match.Success && int.TryParse(match.Groups[2].Value, out var qty)) yield return (match.Groups[1].Value.Trim(), qty); else yield return (entry.Trim(), 1); }
         }
 
         private enum Period { Day, Week, Month, Year }
@@ -834,14 +292,5 @@ namespace Punto_de_Venta
     }
 
     public sealed record TopProductoItem(int Posicion, string Nombre, int Cantidad, decimal Ingreso);
-
-    public sealed record CorteAuditoriaItem(
-        string FechaHoraFormateada,
-        string FolioTexto,
-        string EsperadoFormateado,
-        string ContadoFormateado,
-        string DiferenciaFormateada,
-        Brush BadgeBackground,
-        Brush BadgeForeground
-    );
+    public sealed record CorteAuditoriaItem(string FechaHoraFormateada, string FolioTexto, string EsperadoFormateado, string ContadoFormateado, string DiferenciaFormateada, Brush BadgeBackground, Brush BadgeForeground);
 }

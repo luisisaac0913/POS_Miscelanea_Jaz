@@ -36,7 +36,7 @@ namespace Punto_de_Venta
 
             try
             {
-                foreach (var debtor in PrestamoFileStore.Load())
+                foreach (var debtor in PrestamoDB.Load())
                 {
                     Debtors.Add(debtor);
                 }
@@ -399,7 +399,7 @@ namespace Punto_de_Venta
 
             try
             {
-                var movements = MovimientoCajaFileStore.Load();
+                var movements = MovimientoCajaDB.Load();
                 var nextMovementId = movements.Select(m => m.Id).DefaultIfEmpty(0).Max() + 1;
 
                 movements.Add(new MovimientoCaja
@@ -411,7 +411,7 @@ namespace Punto_de_Venta
                     Concepto = $"Abono de préstamo: {updatedDebtor.Nombre}"
                 });
 
-                MovimientoCajaFileStore.Save(movements);
+                MovimientoCajaDB.Save(movements);
             }
             catch (Exception ex)
             {
@@ -595,7 +595,7 @@ namespace Punto_de_Venta
         {
             try
             {
-                PrestamoFileStore.Save(debtors);
+                PrestamoDB.Save(debtors);
                 return true;
             }
             catch (Exception exception)

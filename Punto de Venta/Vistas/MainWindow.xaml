@@ -287,22 +287,19 @@
                                    Foreground="{DynamicResource ThemeTextForeground}" />
                     </StackPanel>
 
-                    <!-- Zona Derecha: Botón Promociones + Cápsula de Reloj -->
+                    <!-- Zona Derecha: Botón Paginación + Cápsula de Reloj -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
 
-                        <!-- ■ NUEVO: Botón Promociones ubicado en la zona marcada -->
-                        <Button x:Name="BtnPromociones"
+                        <!-- NUEVO: Botón Paginación en lugar de Promociones -->
+                        <Button x:Name="BtnSiguientePagina"
                                 Style="{StaticResource HeaderPillButtonStyle}"
                                 Height="56"
                                 Margin="0,0,14,0"
-                                Click="Promociones_Click"
-                                ToolTip="Gestionar ofertas y paquetes automáticos">
+                                Click="BtnPaginacion_Click"
+                                ToolTip="Ir a la siguiente página de opciones">
                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="🏷️" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0" />
-                                <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="Promociones" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" />
-                                    <TextBlock Text="Ofertas y Combos" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
-                                </StackPanel>
+                                <TextBlock x:Name="IconoPaginacion" Text="→" FontSize="25" VerticalAlignment="Center" Margin="0,0,8,0" />
+
                             </StackPanel>
                         </Button>
 
@@ -335,12 +332,14 @@
                 </Grid>
 
                 <!-- 2. Rejilla principal de accesos directos -->
-                <UniformGrid x:Name="ShortcutGrid"
+                <!-- Grid Página 1 -->
+                <UniformGrid x:Name="ShortcutGridPagina1"
                              Grid.Row="1"
                              Rows="2"
                              Columns="4"
                              HorizontalAlignment="Stretch"
-                             VerticalAlignment="Stretch">
+                             VerticalAlignment="Stretch"
+                             Visibility="Visible">
 
                     <!-- Cobro -->
                     <Button Style="{StaticResource ShortcutButtonStyle}" AutomationProperties.Name="Cobro" Click="Cobro_Click">
@@ -483,6 +482,63 @@
                             <TextBlock Text="Exportar" HorizontalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                         </StackPanel>
                     </Button>
+                </UniformGrid>
+
+                <!-- Grid Página 2 (Promociones y Código de Barras) -->
+                <UniformGrid x:Name="ShortcutGridPagina2"
+                             Grid.Row="1"
+                             Rows="2"
+                             Columns="4"
+                             HorizontalAlignment="Stretch"
+                             VerticalAlignment="Stretch"
+                             Visibility="Collapsed">
+
+                    <!-- Promociones (Movido desde el Header) -->
+                    <Button Style="{StaticResource ShortcutButtonStyle}" AutomationProperties.Name="Promociones" Click="Promociones_Click">
+                        <StackPanel VerticalAlignment="Center">
+                            <Viewbox Width="108" Height="100" Stretch="Uniform">
+                                <Canvas Width="100" Height="90">
+                                    <!-- Dibujo de etiqueta de promoción -->
+                                    <Path Data="M 20,45 L 45,20 L 80,20 L 80,55 L 55,80 Z"
+                                          Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="4" StrokeLineJoin="Round" />
+                                    <Ellipse Canvas.Left="60" Canvas.Top="35" Width="10" Height="10" 
+                                             Stroke="{DynamicResource ThemeAccent}" StrokeThickness="3" Fill="Transparent" />
+                                    <Path Data="M 35,50 L 50,65 M 35,60 L 40,65" 
+                                          Stroke="{DynamicResource ThemeMutedForeground}" StrokeThickness="3" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                </Canvas>
+                            </Viewbox>
+                            <Border Height="1" Margin="12,12,12,10" Background="{DynamicResource ThemeBorder}" />
+                            <TextBlock Text="Promociones" HorizontalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Códigos de Barras -->
+                    <Button Style="{StaticResource ShortcutButtonStyle}" AutomationProperties.Name="Códigos de Barras" Click="CodigosDeBarras_Click">
+                        <StackPanel VerticalAlignment="Center">
+                            <Viewbox Width="108" Height="100" Stretch="Uniform">
+                                <Canvas Width="100" Height="90">
+                                    <!-- Dibujo de un código de barras -->
+                                    <Path Data="M 20,20 L 20,60 M 30,20 L 30,60 M 38,20 L 38,60 M 45,20 L 45,60 M 55,20 L 55,60 M 62,20 L 62,60 M 70,20 L 70,60 M 80,20 L 80,60"
+                                          Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="4" StrokeStartLineCap="Square" StrokeEndLineCap="Square" />
+                                    <Path Data="M 25,20 L 25,60 M 42,20 L 42,60 M 50,20 L 50,60 M 67,20 L 67,60 M 76,20 L 76,60"
+                                          Stroke="{DynamicResource ThemeAccent}" StrokeThickness="2" StrokeStartLineCap="Square" StrokeEndLineCap="Square" />
+                                    <Path Data="M 15,10 L 85,10 L 85,75 L 15,75 Z"
+                                          Stroke="{DynamicResource ThemeMutedForeground}" StrokeThickness="3" StrokeLineJoin="Round" Fill="Transparent" />
+                                </Canvas>
+                            </Viewbox>
+                            <Border Height="1" Margin="12,12,12,10" Background="{DynamicResource ThemeBorder}" />
+                            <TextBlock Text="Códigos de Barras" HorizontalAlignment="Center" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                        </StackPanel>
+                    </Button>
+
+                    <!-- Espacios vacíos para completar la rejilla -->
+                    <Border Background="Transparent" />
+                    <Border Background="Transparent" />
+                    <Border Background="Transparent" />
+                    <Border Background="Transparent" />
+                    <Border Background="Transparent" />
+                    <Border Background="Transparent" />
+
                 </UniformGrid>
 
                 <!-- 3. Modal Overlay de Exportar -->

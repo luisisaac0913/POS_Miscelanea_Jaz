@@ -1,4 +1,5 @@
 ﻿using Punto_de_Venta.Datos;
+using Punto_de_Venta.Servicios;
 using System;
 using System.IO;
 using System.Text;
@@ -15,7 +16,7 @@ namespace Punto_de_Venta
 
         private static string ErrorLogPath => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz",
+            "POS_DataStorage",
             "error_log.txt");
 
         protected override void OnStartup(StartupEventArgs e)
@@ -23,12 +24,41 @@ namespace Punto_de_Venta
             DispatcherUnhandledException += App_DispatcherUnhandledException;
             AppDomain.CurrentDomain.UnhandledException += CurrentDomain_UnhandledException;
             TaskScheduler.UnobservedTaskException += TaskScheduler_UnobservedTaskException;
-
             base.OnStartup(e);
+
+            // =========================================================
+            // 1. MÓDULO DE SEGURIDAD (VA PRIMERO QUE TODO)
+            // =========================================================
+            if (!LicenciaService.LicenciaExiste())
+            {
+                // Si no hay licencia, es la primera vez. Exigimos activación.
+                var activacionWnd = new ActivacionWindow();
+                if (activacionWnd.ShowDialog() != true)
+                {
+                    // Si le dio a Cancelar o cerró la ventana, matamos la app
+                    Shutdown();
+                    return;
+                }
+            }
+            else if (!LicenciaService.ValidarLicencia())
+            {
+                // Si la licencia existe pero el hash del hardware no coincide (intento de piratería/clonación)
+                MessageBox.Show("ERROR DE LICENCIA: El hardware de este equipo no coincide con el registro original de la instalación. Contacte a soporte técnico para reactivar el sistema.",
+                                "Violación de Seguridad", MessageBoxButton.OK, MessageBoxImage.Error);
+                Shutdown();
+                return;
+            }
+            // =========================================================
+
+            // =========================================================
+            // 2. BASE DE DATOS Y MIGRACIONES (Solo si pasó la seguridad)
+            // =========================================================
             DatabaseHelper.InicializarBaseDeDatos();
-            DatabaseHelper.MigrarDesdeArchivosPlanosSiEsNecesario();
-            DatabaseHelper.MigrarVentasYMovimientosSiEsNecesario();
-            DatabaseHelper.MigrarCortesYPrestamosSiEsNecesario();
+            DatabaseHelper.ActualizarEsquemaVentas();
+
+            // =========================================================
+            // 3. CARGA DE CONFIGURACIÓN Y TEMA
+            // =========================================================
             try
             {
                 var config = AppConfig.Load();

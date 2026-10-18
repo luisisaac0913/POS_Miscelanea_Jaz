@@ -6,7 +6,7 @@ using System.Globalization;
 
 namespace Punto_de_Venta.Datos
 {
-    public static class CorteCajaFileStore
+    public static class CorteCajaDB
     {
         public static List<CorteCaja> Load()
         {

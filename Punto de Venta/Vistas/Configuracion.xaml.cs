@@ -3,7 +3,6 @@ using Punto_de_Venta.Servicios;
 using System;
 using System.Collections.Generic;
 using System.Drawing.Printing;
-using System.Globalization;
 using System.IO;
 using System.Text;
 using System.Threading.Tasks;
@@ -16,9 +15,12 @@ namespace Punto_de_Venta
 {
     public partial class Configuracion : Window
     {
+        #region Campos Privados
         private AppConfig _config = new();
         private bool _isTestingScale = false;
+        #endregion
 
+        #region Inicialización y Constructor
         public Configuracion()
         {
             InitializeComponent();
@@ -30,18 +32,9 @@ namespace Punto_de_Venta
             CargarDatosFormulario();
             await CargarDispositivosAsync();
         }
+        #endregion
 
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            if (e.Key == Key.Escape)
-            {
-                Close();
-                e.Handled = true;
-            }
-        }
-
-        private void NavWhatsApp_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelWhatsApp, false);
-
+        #region Carga y Mapeo de Datos al Formulario
         private void CargarDatosFormulario()
         {
             _config = AppConfig.Load();
@@ -73,6 +66,13 @@ namespace Punto_de_Venta
             // Impresión y respaldos
             AskBeforePrintCheckBox.IsChecked = _config.PreguntarAntesDeImprimir;
             AutoPrintCheckBox.IsChecked = _config.ImprimirTicketAutomatico;
+
+            // Nueva opción: No guardar ni imprimir
+            if (NoPrintOrSaveCheckBox != null)
+            {
+                NoPrintOrSaveCheckBox.IsChecked = !_config.PreguntarAntesDeImprimir && !_config.ImprimirTicketAutomatico;
+            }
+
             BackupFolderBox.Text = _config.RutaRespaldos ?? string.Empty;
 
             // Báscula digital
@@ -108,7 +108,9 @@ namespace Punto_de_Venta
 
             ActualizarVistaPreviaTicket();
         }
+        #endregion
 
+        #region Detección de Hardware (Impresoras y Puertos COM)
         private async Task CargarDispositivosAsync()
         {
             PrintersComboBox.Items.Clear();
@@ -126,10 +128,7 @@ namespace Punto_de_Venta
                         resultado.Add(printer);
                     }
                 }
-                catch
-                {
-                    // Manejo silencioso en entornos donde el spooler esté deshabilitado
-                }
+                catch { }
                 return resultado;
             });
 
@@ -183,7 +182,9 @@ namespace Punto_de_Venta
             CargarPuertosSerie();
             ToastNotification.Show("Puertos COM actualizados", ToastType.Info);
         }
+        #endregion
 
+        #region Pruebas de Báscula
         private async void TestScale_Click(object sender, RoutedEventArgs e)
         {
             if (_isTestingScale) return;
@@ -196,7 +197,7 @@ namespace Punto_de_Venta
             }
 
             _isTestingScale = true;
-            ScaleTestResultText.Text = "Conectando y leyendo bascula...";
+            ScaleTestResultText.Text = "Conectando y leyendo báscula...";
             ScaleTestResultText.Foreground = (Brush)FindResource("ThemeMutedForeground");
 
             var (exito, peso, error) = await Task.Run(() =>
@@ -211,21 +212,24 @@ namespace Punto_de_Venta
             {
                 ScaleTestResultText.Text = $"✅ Lectura exitosa: {peso:0.000} kg";
                 ScaleTestResultText.Foreground = (Brush)FindResource("SystemGreen");
-                ToastNotification.Show($"Bascula conectada: {peso:0.000} kg", ToastType.Success);
+                ToastNotification.Show($"Báscula conectada: {peso:0.000} kg", ToastType.Success);
             }
             else
             {
                 ScaleTestResultText.Text = $"❌ Fallo: {error}";
                 ScaleTestResultText.Foreground = new SolidColorBrush(Color.FromRgb(255, 59, 48));
-                ToastNotification.Show($"Error en bascula: {error}", ToastType.Error);
+                ToastNotification.Show($"Error en báscula: {error}", ToastType.Error);
             }
         }
+        #endregion
 
+        #region Navegación y Paneles Laterales
         private void NavImpresion_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelImpresion, true);
         private void NavPersonalizacion_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelPersonalizacion, false);
         private void NavBascula_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelBascula, false);
         private void NavSeguridad_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelSeguridad, false);
         private void NavAtajos_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelAtajos, false);
+        private void NavWhatsApp_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelWhatsApp, false);
 
         private void MostrarPanel(StackPanel panel, bool verPreviewTicket)
         {
@@ -240,7 +244,6 @@ namespace Punto_de_Venta
             PreviewColumn.Width = verPreviewTicket ? new GridLength(300) : new GridLength(0);
             PreviewCardBorder.Visibility = verPreviewTicket ? Visibility.Visible : Visibility.Collapsed;
 
-            // Resaltar visualmente el botón activo en el sidebar
             ActualizarBotonSidebar(NavImpresionBtn, panel == PanelImpresion);
             ActualizarBotonSidebar(NavPersonalizacionBtn, panel == PanelPersonalizacion);
             ActualizarBotonSidebar(NavBasculaBtn, panel == PanelBascula);
@@ -263,7 +266,9 @@ namespace Punto_de_Venta
                 btn.SetResourceReference(Button.ForegroundProperty, "ThemeTextForeground");
             }
         }
+        #endregion
 
+        #region Vista Previa del Ticket
         private void TicketField_TextChanged(object sender, TextChangedEventArgs e) => ActualizarVistaPreviaTicket();
         private void PaperWidthComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => ActualizarVistaPreviaTicket();
 
@@ -277,69 +282,24 @@ namespace Punto_de_Venta
                 cols = parsedCols;
             }
 
-            var lineSep = new string('-', cols);
-            var sb = new StringBuilder();
-
-            sb.AppendLine(CentrarTexto(BusinessNameBox?.Text ?? "MISCELANEA JAZ", cols));
-            sb.AppendLine(CentrarTexto(BusinessSubtitleBox?.Text ?? string.Empty, cols));
-            sb.AppendLine(CentrarTexto(BusinessAddressBox?.Text ?? string.Empty, cols));
-            sb.AppendLine(lineSep);
-            sb.AppendLine($"FECHA: {DateTime.Now:dd/MM/yyyy hh:mm tt}");
-            sb.AppendLine("FOLIO: #0001");
-            sb.AppendLine(lineSep);
-
-            if (cols == 42)
+            var tempConfig = new AppConfig
             {
-                sb.AppendLine("CANT  DESCRIPCION            PRECIO   IMPORTE");
-                sb.AppendLine("1     Refresco Coca Cola 600 $18.00    $18.00");
-                sb.AppendLine("2     Galletas Chokis 70g    $17.00    $34.00");
-            }
-            else
-            {
-                sb.AppendLine("CANT DESCRIPCION       PRECIO IMPORTE");
-                sb.AppendLine("1    Refresco Coca 600 $18.00  $18.00");
-                sb.AppendLine("2    Galletas Chokis   $17.00  $34.00");
-            }
+                NombreNegocio = BusinessNameBox?.Text ?? "MISCELANEA JAZ",
+                GiroNegocio = BusinessSubtitleBox?.Text ?? string.Empty,
+                DireccionNegocio = BusinessAddressBox?.Text ?? string.Empty,
+                MensajePie = FooterMessageBox?.Text ?? string.Empty,
+                AnchoTicketCaracteres = cols
+            };
 
-            sb.AppendLine(lineSep);
-            sb.AppendLine(AlinearExtremos("TOTAL:", "$52.00", cols));
-            sb.AppendLine(AlinearExtremos("PAGO CON:", "$100.00", cols));
-            sb.AppendLine(AlinearExtremos("CAMBIO:", "$48.00", cols));
-            sb.AppendLine(lineSep);
-
-            var lineasPie = (FooterMessageBox?.Text ?? string.Empty).Split('\n');
-            foreach (var l in lineasPie)
-            {
-                if (!string.IsNullOrWhiteSpace(l))
-                {
-                    sb.AppendLine(CentrarTexto(l.Trim(), cols));
-                }
-            }
-
-            PreviewTicketText.Text = sb.ToString();
+            PreviewTicketText.Text = TicketService.GenerarTicketMuestra(tempConfig);
         }
+        #endregion
 
-        private static string CentrarTexto(string texto, int longitud)
-        {
-            if (string.IsNullOrWhiteSpace(texto)) return string.Empty;
-            texto = texto.Trim();
-            if (texto.Length >= longitud) return texto[..longitud];
-            int espacios = (longitud - texto.Length) / 2;
-            return new string(' ', espacios) + texto;
-        }
-
-        private static string AlinearExtremos(string izquierda, string derecha, int anchoTotal)
-        {
-            int espacios = anchoTotal - (izquierda.Length + derecha.Length);
-            if (espacios < 1) espacios = 1;
-            return izquierda + new string(' ', espacios) + derecha;
-        }
-
+        #region Acciones y Persistencia (Guardar Configuración)
         private void BrowseBackupFolder_Click(object sender, RoutedEventArgs e)
         {
             try
             {
-                // En .NET 8+ OpenFolderDialog está en Microsoft.Win32
                 var dialog = new Microsoft.Win32.OpenFolderDialog
                 {
                     Title = "Seleccionar carpeta para respaldos automáticos",
@@ -349,14 +309,8 @@ namespace Punto_de_Venta
                 if (dialog.ShowDialog(this) == true)
                 {
                     string rutaSeleccionada = dialog.FolderName;
+                    if (!Directory.Exists(rutaSeleccionada)) Directory.CreateDirectory(rutaSeleccionada);
 
-                    // Validar que la carpeta exista o se pueda crear
-                    if (!Directory.Exists(rutaSeleccionada))
-                    {
-                        Directory.CreateDirectory(rutaSeleccionada);
-                    }
-
-                    // Probar permiso de escritura inmediato
                     string pruebaArchivo = Path.Combine(rutaSeleccionada, ".permiso_test");
                     File.WriteAllText(pruebaArchivo, "ok");
                     File.Delete(pruebaArchivo);
@@ -365,47 +319,30 @@ namespace Punto_de_Venta
                     ToastNotification.Show("Carpeta de respaldos configurada correctamente", ToastType.Success);
                 }
             }
-            catch (UnauthorizedAccessException)
-            {
-                ToastNotification.Show("No tienes permisos de escritura en esa carpeta. Elige otra.", ToastType.Error);
-            }
             catch (Exception ex)
             {
                 ToastNotification.Show($"Error al seleccionar carpeta: {ex.Message}", ToastType.Error);
             }
         }
 
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
-
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-        // Exclusividad lógica de impresión para evitar comportamientos contradictorios
         private void AskBeforePrintCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            if (AutoPrintCheckBox != null && AutoPrintCheckBox.IsChecked == true)
-            {
-                AutoPrintCheckBox.IsChecked = false;
-            }
+            if (AutoPrintCheckBox != null && AutoPrintCheckBox.IsChecked == true) AutoPrintCheckBox.IsChecked = false;
+            if (NoPrintOrSaveCheckBox != null && NoPrintOrSaveCheckBox.IsChecked == true) NoPrintOrSaveCheckBox.IsChecked = false;
         }
 
         private void AutoPrintCheckBox_Checked(object sender, RoutedEventArgs e)
         {
-            if (AskBeforePrintCheckBox != null && AskBeforePrintCheckBox.IsChecked == true)
-            {
-                AskBeforePrintCheckBox.IsChecked = false;
-            }
+            if (AskBeforePrintCheckBox != null && AskBeforePrintCheckBox.IsChecked == true) AskBeforePrintCheckBox.IsChecked = false;
+            if (NoPrintOrSaveCheckBox != null && NoPrintOrSaveCheckBox.IsChecked == true) NoPrintOrSaveCheckBox.IsChecked = false;
         }
+
+        private void NoPrintOrSaveCheckBox_Checked(object sender, RoutedEventArgs e)
+        {
+            if (AskBeforePrintCheckBox != null) AskBeforePrintCheckBox.IsChecked = false;
+            if (AutoPrintCheckBox != null) AutoPrintCheckBox.IsChecked = false;
+        }
+
         private void SaveConfig_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -434,17 +371,19 @@ namespace Punto_de_Venta
                 }
                 _config.BasculaProtocolo = (ScaleProtocolComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Torrey / Rhino (Petición P)";
 
-                _config.PreguntarAntesDeImprimir = AskBeforePrintCheckBox.IsChecked == true;
-                _config.ImprimirTicketAutomatico = AutoPrintCheckBox.IsChecked == true;
+                // Lógica de exclusividad para impresión
+                bool noPrintSave = NoPrintOrSaveCheckBox?.IsChecked == true;
+                _config.PreguntarAntesDeImprimir = !noPrintSave && (AskBeforePrintCheckBox.IsChecked == true);
+                _config.ImprimirTicketAutomatico = !noPrintSave && (AutoPrintCheckBox.IsChecked == true);
+
                 _config.RutaRespaldos = BackupFolderBox.Text.Trim();
 
-                // Validación de PIN
                 if (!string.IsNullOrWhiteSpace(NewPinBox.Password))
                 {
                     var nuevoPin = NewPinBox.Password.Trim();
                     if (nuevoPin.Length < 4)
                     {
-                        ToastNotification.Show("El PIN debe tener al menos 4 dígitos numericos", ToastType.Warning);
+                        ToastNotification.Show("El PIN debe tener al menos 4 dígitos numéricos", ToastType.Warning);
                         NewPinBox.Focus();
                         return;
                     }
@@ -461,12 +400,40 @@ namespace Punto_de_Venta
                     app.SetDarkMode(modoOscuroSeleccionado);
                 }
 
-                ToastNotification.Show("Configuracion guardada exitosamente", ToastType.Success);
+                ToastNotification.Show("Configuración guardada exitosamente", ToastType.Success);
             }
             catch (Exception ex)
             {
-                ToastNotification.Show($"Error al guardar configuracion: {ex.Message}", ToastType.Error);
+                ToastNotification.Show($"Error al guardar configuración: {ex.Message}", ToastType.Error);
             }
         }
+        #endregion
+
+        #region Controles de Ventana (Barra de Título y Cierre)
+        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (e.ClickCount == 2)
+            {
+                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+            }
+            else
+            {
+                DragMove();
+            }
+        }
+
+        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                Close();
+                e.Handled = true;
+            }
+        }
+        #endregion
     }
 }

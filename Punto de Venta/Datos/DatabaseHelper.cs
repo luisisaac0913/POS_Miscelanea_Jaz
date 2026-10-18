@@ -8,7 +8,7 @@ namespace Punto_de_Venta.Datos
     {
         public static string DbFolder => Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz");
+            "POS_DataStorage");
 
         public static string DbPath => Path.Combine(DbFolder, "pos_data.db");
 
@@ -18,7 +18,29 @@ namespace Punto_de_Venta.Datos
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Shared
         }.ToString();
+        public static void ActualizarEsquemaVentas()
+        {
+            using var conn = GetConnection();
+            string[] queries = {
+        "ALTER TABLE Ventas ADD COLUMN PagoEfectivo REAL DEFAULT 0;",
+        "ALTER TABLE Ventas ADD COLUMN PagoTarjeta REAL DEFAULT 0;",
+        "ALTER TABLE Ventas ADD COLUMN PagoTransferencia REAL DEFAULT 0;"
+    };
 
+            foreach (var query in queries)
+            {
+                try
+                {
+                    using var cmd = conn.CreateCommand();
+                    cmd.CommandText = query;
+                    cmd.ExecuteNonQuery();
+                }
+                catch
+                {
+                    // Ignoramos la excepción si la columna ya existe
+                }
+            }
+        }
         public static SqliteConnection GetConnection()
         {
             var conn = new SqliteConnection(ConnectionString);

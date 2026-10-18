@@ -275,6 +275,11 @@
                                         <ComboBoxItem Content="80 mm ancho (42 columnas)" Tag="42" />
                                     </ComboBox>
 
+                                    <!-- Opciones de comportamiento de ticket MOVIDAS AQUÍ SOLAMENTE -->
+                                    <CheckBox x:Name="AskBeforePrintCheckBox" Content="Preguntar antes de imprimir al finalizar venta" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,6" Checked="AskBeforePrintCheckBox_Checked" />
+                                    <CheckBox x:Name="AutoPrintCheckBox" Content="Imprimir ticket siempre de forma automática" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,6" Checked="AutoPrintCheckBox_Checked" />
+                                    <CheckBox x:Name="NoPrintOrSaveCheckBox" Content="No guardar copia digital ni imprimir" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,12" Checked="NoPrintOrSaveCheckBox_Checked" />
+
                                     <Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,4,0,12" />
                                     <TextBlock Text="Datos del ticket" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,10" />
 
@@ -417,12 +422,6 @@
 
                                 <!-- ================= SECCIÓN 4: CAJA Y SEGURIDAD ================= -->
                                 <StackPanel x:Name="PanelSeguridad" Visibility="Collapsed">
-                                    <TextBlock Text="Comportamiento en caja" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,10" />
-
-                                    <CheckBox x:Name="AskBeforePrintCheckBox" Content="Preguntar antes de imprimir al finalizar venta" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,8" Checked="AskBeforePrintCheckBox_Checked" />
-                                    <CheckBox x:Name="AutoPrintCheckBox" Content="Imprimir ticket siempre de forma automática" Foreground="{DynamicResource ThemeTextForeground}" FontSize="13" Margin="0,0,0,14" Checked="AutoPrintCheckBox_Checked" />
-
-                                    <Border Height="1" Background="{DynamicResource ThemeBorder}" Margin="0,4,0,12" />
                                     <TextBlock Text="Seguridad de acceso" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,10" />
 
                                     <TextBlock Text="Nuevo PIN de administrador (mínimo 4 dígitos)" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0,0,4" />
@@ -596,7 +595,7 @@
                                             </Grid>
                                         </StackPanel>
                                     </Border>
-                                    
+
                                 </StackPanel>
                             </StackPanel>
                         </ScrollViewer>

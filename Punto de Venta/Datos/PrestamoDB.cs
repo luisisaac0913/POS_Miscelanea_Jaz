@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Punto_de_Venta.Datos
 {
-    public static class PrestamoFileStore
+    public static class PrestamoDB
     {
         public static List<Deudor> Load()
         {

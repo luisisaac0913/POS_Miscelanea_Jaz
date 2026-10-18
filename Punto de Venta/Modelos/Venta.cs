@@ -12,6 +12,13 @@ namespace Punto_de_Venta.Modelos
         private int _cantidadTotalGuardada;
         private string _estado = "Abierta";
         public string MetodoPago { get; set; } = "Efectivo";
+
+        // --- NUEVAS PROPIEDADES EN MEMORIA ---
+        public decimal PagoEfectivo { get; set; }
+        public decimal PagoTarjeta { get; set; }
+        public decimal PagoTransferencia { get; set; }
+        // -------------------------------------
+
         public int Id { get; set; }
         public DateTime FechaHora { get; set; } = DateTime.Now;
         public decimal Total { get; set; }
@@ -29,9 +36,7 @@ namespace Punto_de_Venta.Modelos
             set { } // Setter vacío para permitir deserialización o lectura sin romper
         }
         public string Categoria { get; set; } = "N/A";
-        // "Abierta"   -> Venta normal del turno actual (fondo blanco o neutro)
-        // "Cerrada"   -> Venta incluida en un Cierre de Caja (fondo verde)
-        // "Cancelada" -> Venta marcada como Devolucion (fondo rojo)
+
         public string Estado
         {
             get => _estado;
@@ -61,7 +66,6 @@ namespace Punto_de_Venta.Modelos
             set => _cantidadTotalGuardada = value;
         }
 
-        // Calculos automaticos de Costo y Ganancia para el nuevo panel inferior
         public decimal CostoTotal =>
             Productos.Count > 0 ? Productos.Sum(product => product.Costo * product.Cantidad) : 0m;
 

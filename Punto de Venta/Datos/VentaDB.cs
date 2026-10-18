@@ -7,7 +7,7 @@ using System.Linq;
 
 namespace Punto_de_Venta.Datos
 {
-    public static class VentaFileStore
+    public static class VentaDB
     {
         public static List<Venta> Load()
         {
@@ -28,7 +28,23 @@ namespace Punto_de_Venta.Datos
                     var pagoCon = Convert.ToDecimal(reader.GetDouble(3));
                     var cambio = Convert.ToDecimal(reader.GetDouble(4));
                     var estado = reader.GetString(5);
-                    var metodoPago = reader.GetString(6);
+
+                    var metodoPagoRaw = reader.GetString(6);
+                    var metodoPagoFinal = metodoPagoRaw;
+                    decimal pEfectivo = 0, pTarjeta = 0, pTransf = 0;
+
+                    // Desempaquetar si es Cobro Mixto
+                    if (metodoPagoRaw != null && metodoPagoRaw.StartsWith("Mixto|"))
+                    {
+                        metodoPagoFinal = "Mixto";
+                        var partes = metodoPagoRaw.Split('|');
+                        foreach (var parte in partes)
+                        {
+                            if (parte.StartsWith("E:")) decimal.TryParse(parte.Substring(2), NumberStyles.Any, CultureInfo.InvariantCulture, out pEfectivo);
+                            if (parte.StartsWith("T:")) decimal.TryParse(parte.Substring(2), NumberStyles.Any, CultureInfo.InvariantCulture, out pTarjeta);
+                            if (parte.StartsWith("Tr:")) decimal.TryParse(parte.Substring(3), NumberStyles.Any, CultureInfo.InvariantCulture, out pTransf);
+                        }
+                    }
 
                     if (!DateTime.TryParse(fechaStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fecha))
                     {
@@ -43,7 +59,10 @@ namespace Punto_de_Venta.Datos
                         PagoCon = pagoCon,
                         Cambio = cambio,
                         Estado = estado,
-                        MetodoPago = metodoPago,
+                        MetodoPago = metodoPagoFinal,
+                        PagoEfectivo = pEfectivo,
+                        PagoTarjeta = pTarjeta,
+                        PagoTransferencia = pTransf,
                         Productos = []
                     };
                 }
@@ -128,7 +147,15 @@ namespace Punto_de_Venta.Datos
                     vPago.Value = Convert.ToDouble(sale.PagoCon);
                     vCambio.Value = Convert.ToDouble(sale.Cambio);
                     vEstado.Value = sale.Estado ?? "Abierta";
-                    vMetodo.Value = sale.MetodoPago ?? "Efectivo";
+
+                    // Empaquetar si es Cobro Mixto
+                    string metodoGuardar = sale.MetodoPago ?? "Efectivo";
+                    if (metodoGuardar == "Mixto")
+                    {
+                        metodoGuardar = $"Mixto|E:{sale.PagoEfectivo.ToString(CultureInfo.InvariantCulture)}|T:{sale.PagoTarjeta.ToString(CultureInfo.InvariantCulture)}|Tr:{sale.PagoTransferencia.ToString(CultureInfo.InvariantCulture)}";
+                    }
+
+                    vMetodo.Value = metodoGuardar;
                     insertVenta.ExecuteNonQuery();
 
                     if (sale.Productos != null && sale.Productos.Count > 0)

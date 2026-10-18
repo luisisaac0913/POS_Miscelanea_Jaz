@@ -54,7 +54,7 @@ namespace Punto_de_Venta
 
             try
             {
-                foreach (var product in ProductoFileStore.Load())
+                foreach (var product in ProductoDB.Load())
                 {
                     Products.Add(product);
                 }
@@ -250,7 +250,7 @@ namespace Punto_de_Venta
 
             try
             {
-                ProductoFileStore.Save(Products);
+                ProductoDB.Save(Products);
                 ProductsView.Refresh();
                 ToastNotification.Show($"+{addAmount} pzas añadidas ({_selectedProduct.Nombre}). Stock: {newStock}", ToastType.Success);
             }
@@ -290,6 +290,12 @@ namespace Punto_de_Venta
                 if (AskQuantityCheckBox != null)
                 {
                     AskQuantityCheckBox.IsChecked = _selectedProduct.PedirCantidadAlCobrar;
+                }
+
+                // ESTA ES LA LÍNEA QUE FALTABA PARA QUE LA INTERFAZ LO MUESTRE GUARDADO
+                if (ScaleWeighCheckBox != null)
+                {
+                    ScaleWeighCheckBox.IsChecked = _selectedProduct.SeVendePorPeso;
                 }
             }
             finally
@@ -414,7 +420,8 @@ namespace Punto_de_Venta
                 Ganancia = margin,
                 Precio = price,
                 Stock = stock,
-                PedirCantidadAlCobrar = AskQuantityCheckBox?.IsChecked == true
+                PedirCantidadAlCobrar = AskQuantityCheckBox?.IsChecked == true,
+                SeVendePorPeso = ScaleWeighCheckBox?.IsChecked == true // NUEVA LÍNEA
             };
 
             var updatedProducts = Products.Append(newProduct).ToList();
@@ -506,7 +513,8 @@ namespace Punto_de_Venta
                 Ganancia = margin,
                 Precio = price,
                 Stock = stock,
-                PedirCantidadAlCobrar = AskQuantityCheckBox?.IsChecked == true
+                PedirCantidadAlCobrar = AskQuantityCheckBox?.IsChecked == true,
+                SeVendePorPeso = ScaleWeighCheckBox?.IsChecked == true // NUEVA LÍNEA
             };
 
             var updatedProducts = Products.Select(product => product.Id == oldProduct.Id ? updatedProduct : product).ToList();
@@ -628,7 +636,7 @@ namespace Punto_de_Venta
         {
             try
             {
-                ProductoFileStore.Save(products);
+                ProductoDB.Save(products);
                 return true;
             }
             catch (Exception exception)
@@ -684,9 +692,14 @@ namespace Punto_de_Venta
                 StockBox.Text = "0";
                 ProductCostBox.Clear();
                 ProductMarginBox.Clear();
+
                 if (AskQuantityCheckBox != null)
                 {
                     AskQuantityCheckBox.IsChecked = false;
+                }
+                if (ScaleWeighCheckBox != null)
+                {
+                    ScaleWeighCheckBox.IsChecked = false;
                 }
             }
             finally

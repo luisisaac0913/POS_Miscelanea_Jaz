@@ -5,7 +5,7 @@ using System.Collections.Generic;
 
 namespace Punto_de_Venta.Datos
 {
-    public static class ProductoFileStore
+    public static class ProductoDB
     {
         public static List<Producto> Load()
         {
@@ -14,7 +14,7 @@ namespace Punto_de_Venta.Datos
             using var conn = DatabaseHelper.GetConnection();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT Id, Codigo, Nombre, Categoria, Costo, Ganancia, Precio, Stock, PedirCantidadAlCobrar 
+                SELECT Id, Codigo, Nombre, Categoria, Costo, Ganancia, Precio, Stock, PedirCantidadAlCobrar, SeVendePorPeso 
                 FROM Productos 
                 ORDER BY Id ASC;";
 
@@ -31,7 +31,8 @@ namespace Punto_de_Venta.Datos
                     Ganancia = Convert.ToDecimal(reader.GetDouble(5)),
                     Precio = Convert.ToDecimal(reader.GetDouble(6)),
                     Stock = reader.GetInt32(7),
-                    PedirCantidadAlCobrar = reader.GetInt32(8) == 1
+                    PedirCantidadAlCobrar = reader.GetInt32(8) == 1,
+                    SeVendePorPeso = reader.GetInt32(9) == 1 // NUEVO CAMPO
                 });
             }
 
@@ -45,19 +46,25 @@ namespace Punto_de_Venta.Datos
 
             try
             {
-                // Limpiar y reinsertar dentro de una sola transacción protegida
-                using (var deleteCmd = conn.CreateCommand())
-                {
-                    deleteCmd.Transaction = transaction;
-                    deleteCmd.CommandText = "DELETE FROM Productos;";
-                    deleteCmd.ExecuteNonQuery();
-                }
+                // ELIMINAMOS la instrucción deleteCmd que borraba la tabla completa
 
                 using var insertCmd = conn.CreateCommand();
                 insertCmd.Transaction = transaction;
+
+                // Usamos UPSERT: Inserta el registro, pero si el Id ya existe, solo lo actualiza
                 insertCmd.CommandText = @"
-                    INSERT INTO Productos (Id, Codigo, Nombre, Categoria, Costo, Ganancia, Precio, Stock, PedirCantidadAlCobrar)
-                    VALUES (@id, @codigo, @nombre, @categoria, @costo, @ganancia, @precio, @stock, @pedirCantidad);";
+                    INSERT INTO Productos (Id, Codigo, Nombre, Categoria, Costo, Ganancia, Precio, Stock, PedirCantidadAlCobrar, SeVendePorPeso)
+                    VALUES (@id, @codigo, @nombre, @categoria, @costo, @ganancia, @precio, @stock, @pedirCantidad, @seVendePorPeso)
+                    ON CONFLICT(Id) DO UPDATE SET 
+                        Codigo = excluded.Codigo,
+                        Nombre = excluded.Nombre,
+                        Categoria = excluded.Categoria,
+                        Costo = excluded.Costo,
+                        Ganancia = excluded.Ganancia,
+                        Precio = excluded.Precio,
+                        Stock = excluded.Stock,
+                        PedirCantidadAlCobrar = excluded.PedirCantidadAlCobrar,
+                        SeVendePorPeso = excluded.SeVendePorPeso;";
 
                 var pId = insertCmd.Parameters.Add("@id", SqliteType.Integer);
                 var pCodigo = insertCmd.Parameters.Add("@codigo", SqliteType.Text);
@@ -68,6 +75,7 @@ namespace Punto_de_Venta.Datos
                 var pPrecio = insertCmd.Parameters.Add("@precio", SqliteType.Real);
                 var pStock = insertCmd.Parameters.Add("@stock", SqliteType.Integer);
                 var pPedir = insertCmd.Parameters.Add("@pedirCantidad", SqliteType.Integer);
+                var pPeso = insertCmd.Parameters.Add("@seVendePorPeso", SqliteType.Integer);
 
                 foreach (var prod in products)
                 {
@@ -80,6 +88,7 @@ namespace Punto_de_Venta.Datos
                     pPrecio.Value = Convert.ToDouble(prod.Precio);
                     pStock.Value = prod.Stock;
                     pPedir.Value = prod.PedirCantidadAlCobrar ? 1 : 0;
+                    pPeso.Value = prod.SeVendePorPeso ? 1 : 0;
 
                     insertCmd.ExecuteNonQuery();
                 }
@@ -93,9 +102,6 @@ namespace Punto_de_Venta.Datos
             }
         }
 
-        /// <summary>
-        /// Búsqueda ultra rápida directa en SQLite aprovechando los índices (opcional para Cobro).
-        /// </summary>
         public static Producto? BuscarPorCodigoOId(string query)
         {
             if (string.IsNullOrWhiteSpace(query)) return null;
@@ -103,7 +109,7 @@ namespace Punto_de_Venta.Datos
             using var conn = DatabaseHelper.GetConnection();
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                SELECT Id, Codigo, Nombre, Categoria, Costo, Ganancia, Precio, Stock, PedirCantidadAlCobrar 
+                SELECT Id, Codigo, Nombre, Categoria, Costo, Ganancia, Precio, Stock, PedirCantidadAlCobrar, SeVendePorPeso 
                 FROM Productos 
                 WHERE Codigo = @query OR Id = @queryInt
                 LIMIT 1;";
@@ -124,7 +130,8 @@ namespace Punto_de_Venta.Datos
                     Ganancia = Convert.ToDecimal(reader.GetDouble(5)),
                     Precio = Convert.ToDecimal(reader.GetDouble(6)),
                     Stock = reader.GetInt32(7),
-                    PedirCantidadAlCobrar = reader.GetInt32(8) == 1
+                    PedirCantidadAlCobrar = reader.GetInt32(8) == 1,
+                    SeVendePorPeso = reader.GetInt32(9) == 1 // NUEVO CAMPO
                 };
             }
 

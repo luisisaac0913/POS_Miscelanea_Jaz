@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Punto_de_Venta.Datos;
+using System;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -31,7 +32,7 @@ namespace Punto_de_Venta
 
         private static readonly string ConfigPath = Path.Combine(
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            "MiscelaneaJaz",
+            "POS_DataStorage",
             "config.json"
         );
 

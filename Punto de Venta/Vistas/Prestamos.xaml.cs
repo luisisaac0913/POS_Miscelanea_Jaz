@@ -1,4 +1,6 @@
-﻿using System;
+﻿using Punto_de_Venta.Datos;
+using Punto_de_Venta.Modelos;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;

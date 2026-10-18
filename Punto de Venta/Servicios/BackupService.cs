@@ -3,7 +3,7 @@ using System.IO;
 using System.IO.Compression;
 using System.Linq;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Servicios
 {
     public static class BackupService
     {

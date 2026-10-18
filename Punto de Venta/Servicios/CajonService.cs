@@ -2,7 +2,7 @@
 using System.IO;
 using System.Runtime.InteropServices;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Servicios
 {
     public static class CajonService
     {

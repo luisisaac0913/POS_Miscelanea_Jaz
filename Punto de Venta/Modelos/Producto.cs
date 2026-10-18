@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Modelos
 {
     public class Producto
     {
@@ -17,5 +17,6 @@ namespace Punto_de_Venta
         public bool EsStockAgotado => Stock <= 0;
         public bool EsStockBajo => Stock > 0 && Stock <= 3;
         public bool PedirCantidadAlCobrar { get; set; } = false;
+        public bool SeVendePorPeso { get; set; }
     }
 }

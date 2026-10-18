@@ -3,7 +3,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:Punto_de_Venta"
              ShutdownMode="OnExplicitShutdown"
-             StartupUri="MainWindow.xaml">
+             StartupUri="Vistas/MainWindow.xaml">
     <Application.Resources>
         <!-- Tokens Apple Light Iniciales -->
         <!-- ================= SCROLLBAR MINIMALISTA FLUIDA ================= -->

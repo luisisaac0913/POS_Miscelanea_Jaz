@@ -1,9 +1,10 @@
 ﻿using Microsoft.Data.Sqlite;
+using Punto_de_Venta.Datos;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Modelos
 {
     public class MovimientoCaja
     {

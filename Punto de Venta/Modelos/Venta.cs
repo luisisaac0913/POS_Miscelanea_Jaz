@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Linq;
 using System.Runtime.CompilerServices;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Modelos
 {
     public class Venta : INotifyPropertyChanged
     {

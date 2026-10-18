@@ -18,7 +18,7 @@
         <DropShadowEffect x:Key="AppleAppIconShadow" BlurRadius="22" ShadowDepth="4" Direction="270" Color="#000000" Opacity="0.08" />
         <DropShadowEffect x:Key="AppleModalShadow" BlurRadius="32" ShadowDepth="8" Direction="270" Color="#000000" Opacity="0.25" />
 
-        <!-- ■ INICIO: Estilos modernos redondeados para los botones de ventana -->
+        <!-- Estilos de barra de título -->
         <Style x:Key="WinCaptionButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="36" />
             <Setter Property="Height" Value="28" />
@@ -47,7 +47,6 @@
             </Setter>
         </Style>
 
-        <!-- ■ Estilo específico para el botón cerrar (hover rojo suave) -->
         <Style x:Key="WinCaptionCloseButtonStyle" TargetType="Button">
             <Setter Property="Width" Value="36" />
             <Setter Property="Height" Value="28" />
@@ -76,9 +75,45 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <!-- ■ FIN: Estilos modernos redondeados para los botones de ventana -->
 
-        <!-- Tarjetas de App tipo Cuadricula iOS -->
+        <!-- Botón Píldora Promociones (Estilo Header Widget) -->
+        <Style x:Key="HeaderPillButtonStyle" TargetType="Button">
+            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, -apple-system" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Padding" Value="16,8" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="PillBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="18"
+                                Padding="{TemplateBinding Padding}"
+                                Effect="{StaticResource AppleAppIconShadow}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="PillBorder" Property="Background" Value="{DynamicResource ThemeInputBackground}" />
+                                <Setter TargetName="PillBorder" Property="BorderBrush" Value="{DynamicResource ThemeAccent}" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="PillBorder" Property="Background" Value="{DynamicResource ThemeBorder}" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Tarjetas de App tipo Cuadrícula iOS -->
         <Style x:Key="ShortcutButtonStyle" TargetType="Button">
             <Setter Property="Margin" Value="10" />
             <Setter Property="Padding" Value="16" />
@@ -122,7 +157,6 @@
             </Setter>
         </Style>
 
-        <!-- Tarjeta interior dentro del Modal de Exportar -->
         <Style x:Key="ExportModalCardStyle" TargetType="Button">
             <Setter Property="Margin" Value="8" />
             <Setter Property="Padding" Value="16" />
@@ -169,12 +203,10 @@
         <Grid>
             <Grid.RowDefinitions>
                 <RowDefinition Height="38" />
-                <!-- Fila 0: Barra de título -->
                 <RowDefinition Height="*" />
-                <!-- Fila 1: Contenido -->
             </Grid.RowDefinitions>
 
-            <!-- ■ INICIO: Barra de título con diseño moderno y botones a la derecha -->
+            <!-- Barra de título -->
             <Grid Grid.Row="0" 
                   Background="Transparent" 
                   MouseLeftButtonDown="ModernTitleBar_MouseLeftButtonDown">
@@ -184,7 +216,6 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Icono discreto a la izquierda para balancear visualmente -->
                 <Image Grid.Column="0" 
                        Source="/Imagenes/Logo.ico" 
                        Width="16" Height="16" 
@@ -192,7 +223,6 @@
                        VerticalAlignment="Center" 
                        Opacity="0.75" />
 
-                <!-- ■ Título de la ventana centrado -->
                 <TextBlock Grid.Column="1" 
                            Text="Miscelanea Jaz" 
                            FontFamily="Segoe UI Variable, Segoe UI, -apple-system" 
@@ -203,13 +233,11 @@
                            VerticalAlignment="Center" 
                            IsHitTestVisible="False" />
 
-                <!-- ■ Botones modernos redondeados a la derecha -->
                 <StackPanel Grid.Column="2" 
                             Orientation="Horizontal" 
                             VerticalAlignment="Center" 
                             Margin="0,0,6,0">
 
-                    <!-- Minimizar -->
                     <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMinimize_Click" ToolTip="Minimizar">
                         <Path Data="M 0,0 L 10,0" 
                               Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -219,7 +247,6 @@
                               VerticalAlignment="Center" />
                     </Button>
 
-                    <!-- Maximizar / Restaurar -->
                     <Button Style="{StaticResource WinCaptionButtonStyle}" Click="BtnMaximize_Click" ToolTip="Maximizar">
                         <Border Width="10" Height="10" 
                                 BorderBrush="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -227,7 +254,6 @@
                                 CornerRadius="2.5" />
                     </Button>
 
-                    <!-- Cerrar -->
                     <Button Style="{StaticResource WinCaptionCloseButtonStyle}" Click="BtnClose_Click" ToolTip="Cerrar">
                         <Path Data="M 0,0 L 9,9 M 9,0 L 0,9" 
                               Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}" 
@@ -238,7 +264,6 @@
                     </Button>
                 </StackPanel>
             </Grid>
-            <!-- ■ FIN: Barra de título con diseño moderno y botones a la derecha -->
 
             <!-- Contenido principal -->
             <Grid Grid.Row="1" Margin="36,10,36,28">
@@ -262,31 +287,51 @@
                                    Foreground="{DynamicResource ThemeTextForeground}" />
                     </StackPanel>
 
-                    <!-- Capsula de reloj y fecha estilo Widget de iOS -->
-                    <Border Grid.Column="1"
-                            Background="{DynamicResource ThemeSurfaceBackground}"
-                            BorderBrush="{DynamicResource ThemeBorder}"
-                            BorderThickness="1"
-                            CornerRadius="18"
-                            Padding="16,8"
-                            VerticalAlignment="Center">
-                        <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
-                            <TextBlock x:Name="ClockText"
-                                       Text="00:00"
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="20"
-                                       FontWeight="Bold"
-                                       Foreground="{DynamicResource ThemeTextForeground}"
-                                       HorizontalAlignment="Right" />
-                            <TextBlock x:Name="DateText"
-                                       Text=""
-                                       FontFamily="Segoe UI Variable, Segoe UI"
-                                       FontSize="12"
-                                       FontWeight="Medium"
-                                       Foreground="{DynamicResource ThemeMutedForeground}"
-                                       HorizontalAlignment="Right" />
-                        </StackPanel>
-                    </Border>
+                    <!-- Zona Derecha: Botón Promociones + Cápsula de Reloj -->
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+
+                        <!-- ■ NUEVO: Botón Promociones ubicado en la zona marcada -->
+                        <Button x:Name="BtnPromociones"
+                                Style="{StaticResource HeaderPillButtonStyle}"
+                                Height="56"
+                                Margin="0,0,14,0"
+                                Click="Promociones_Click"
+                                ToolTip="Gestionar ofertas y paquetes automáticos">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="🏷️" FontSize="18" VerticalAlignment="Center" Margin="0,0,8,0" />
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="Promociones" FontWeight="Bold" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" />
+                                    <TextBlock Text="Ofertas y Combos" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" />
+                                </StackPanel>
+                            </StackPanel>
+                        </Button>
+
+                        <!-- Cápsula de reloj y fecha estilo Widget de iOS -->
+                        <Border Background="{DynamicResource ThemeSurfaceBackground}"
+                                BorderBrush="{DynamicResource ThemeBorder}"
+                                BorderThickness="1"
+                                CornerRadius="18"
+                                Padding="16,8"
+                                Height="56"
+                                VerticalAlignment="Center">
+                            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center">
+                                <TextBlock x:Name="ClockText"
+                                           Text="00:00"
+                                           FontFamily="Segoe UI Variable, Segoe UI"
+                                           FontSize="19"
+                                           FontWeight="Bold"
+                                           Foreground="{DynamicResource ThemeTextForeground}"
+                                           HorizontalAlignment="Right" />
+                                <TextBlock x:Name="DateText"
+                                           Text=""
+                                           FontFamily="Segoe UI Variable, Segoe UI"
+                                           FontSize="11"
+                                           FontWeight="Medium"
+                                           Foreground="{DynamicResource ThemeMutedForeground}"
+                                           HorizontalAlignment="Right" />
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
                 </Grid>
 
                 <!-- 2. Rejilla principal de accesos directos -->
@@ -333,7 +378,7 @@
                         </StackPanel>
                     </Button>
 
-                    <!-- Lista Prod -->
+                    <!-- Inventario -->
                     <Button Style="{StaticResource ShortcutButtonStyle}" AutomationProperties.Name="Lista Prod" Click="Inventario_Click">
                         <StackPanel VerticalAlignment="Center">
                             <Viewbox Width="108" Height="100" Stretch="Uniform">
@@ -440,7 +485,7 @@
                     </Button>
                 </UniformGrid>
 
-                <!-- 3. Modal Overlay de Exportar estilo Sheet iOS -->
+                <!-- 3. Modal Overlay de Exportar -->
                 <Grid x:Name="ExportarOverlay"
                       Grid.RowSpan="2"
                       Background="#66000000"
@@ -483,26 +528,13 @@
                             </StackPanel>
 
                             <UniformGrid Grid.Row="1" Columns="3">
-
-                                <!-- Exportar Ventas -->
                                 <Button Style="{StaticResource ExportModalCardStyle}" AutomationProperties.Name="Exportar ventas" Click="ExportarVentas_Click">
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Ventas"
-                                                   FontSize="18"
-                                                   FontWeight="Bold"
-                                                   Foreground="{DynamicResource ThemeTextForeground}"
-                                                   HorizontalAlignment="Center"
-                                                   Margin="0,0,0,8" />
-                                        <TextBlock Text="Exporta las ventas registradas en la ultima semana, organizadas por dia."
-                                                   TextWrapping="Wrap"
-                                                   FontSize="13"
-                                                   Foreground="{DynamicResource ThemeMutedForeground}"
-                                                   TextAlignment="Center"
-                                                   Height="54" />
+                                        <TextBlock Text="Ventas" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                                        <TextBlock Text="Exporta las ventas registradas en la ultima semana, organizadas por dia." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" TextAlignment="Center" Height="54" />
                                         <Viewbox Width="68" Height="78" Margin="0,10,0,0">
                                             <Canvas Width="70" Height="84">
-                                                <Path Data="M 14,5 L 43,5 L 57,19 L 57,77 L 14,77 Z M 43,5 L 43,19 L 57,19"
-                                                      Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="4" StrokeLineJoin="Round" />
+                                                <Path Data="M 14,5 L 43,5 L 57,19 L 57,77 L 14,77 Z M 43,5 L 43,19 L 57,19" Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="4" StrokeLineJoin="Round" />
                                                 <TextBlock Canvas.Left="27" Canvas.Top="20" Text="$" FontSize="34" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}" />
                                                 <Path Data="M 24,58 L 47,58 M 24,66 L 47,66" Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="3" />
                                             </Canvas>
@@ -510,55 +542,28 @@
                                     </StackPanel>
                                 </Button>
 
-                                <!-- Exportar Productos -->
                                 <Button Style="{StaticResource ExportModalCardStyle}" AutomationProperties.Name="Exportar productos" Click="ExportarProductos_Click">
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Productos"
-                                                   FontSize="18"
-                                                   FontWeight="Bold"
-                                                   Foreground="{DynamicResource ThemeTextForeground}"
-                                                   HorizontalAlignment="Center"
-                                                   Margin="0,0,0,8" />
-                                        <TextBlock Text="Exporta el catalogo completo de productos con stock y precios vigentes."
-                                                   TextWrapping="Wrap"
-                                                   FontSize="13"
-                                                   Foreground="{DynamicResource ThemeMutedForeground}"
-                                                   TextAlignment="Center"
-                                                   Height="54" />
+                                        <TextBlock Text="Productos" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                                        <TextBlock Text="Exporta el catalogo completo de productos con stock y precios vigentes." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" TextAlignment="Center" Height="54" />
                                         <Viewbox Width="74" Height="78" Margin="0,10,0,0">
                                             <Canvas Width="80" Height="84">
-                                                <Path Data="M 16,15 L 30,15 C 30,7 49,7 49,15 L 63,15 L 63,76 L 16,76 Z"
-                                                      Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="4" StrokeLineJoin="Round" />
-                                                <Path Data="M 27,31 L 32,36 L 40,27 M 27,48 L 32,53 L 40,44 M 46,33 L 56,33 M 46,50 L 56,50 M 46,66 L 56,66 M 61,57 L 72,39 L 77,42 L 66,60 Z"
-                                                      Stroke="{DynamicResource ThemeAccent}" StrokeThickness="3" StrokeLineJoin="Round" />
+                                                <Path Data="M 16,15 L 30,15 C 30,7 49,7 49,15 L 63,15 L 63,76 L 16,76 Z" Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="4" StrokeLineJoin="Round" />
+                                                <Path Data="M 27,31 L 32,36 L 40,27 M 27,48 L 32,53 L 40,44 M 46,33 L 56,33 M 46,50 L 56,50 M 46,66 L 56,66 M 61,57 L 72,39 L 77,42 L 66,60 Z" Stroke="{DynamicResource ThemeAccent}" StrokeThickness="3" StrokeLineJoin="Round" />
                                             </Canvas>
                                         </Viewbox>
                                     </StackPanel>
                                 </Button>
 
-                                <!-- Exportar Prestamos -->
                                 <Button Style="{StaticResource ExportModalCardStyle}" AutomationProperties.Name="Exportar prestamos" Click="ExportarPrestamos_Click">
                                     <StackPanel VerticalAlignment="Center">
-                                        <TextBlock Text="Prestamos"
-                                                   FontSize="18"
-                                                   FontWeight="Bold"
-                                                   Foreground="{DynamicResource ThemeTextForeground}"
-                                                   HorizontalAlignment="Center"
-                                                   Margin="0,0,0,8" />
-                                        <TextBlock Text="Exporta el historial de clientes y cuentas fiadas pendientes en la libreta."
-                                                   TextWrapping="Wrap"
-                                                   FontSize="13"
-                                                   Foreground="{DynamicResource ThemeMutedForeground}"
-                                                   TextAlignment="Center"
-                                                   Height="54" />
+                                        <TextBlock Text="Prestamos" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" HorizontalAlignment="Center" Margin="0,0,0,8" />
+                                        <TextBlock Text="Exporta el historial de clientes y cuentas fiadas pendientes en la libreta." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" TextAlignment="Center" Height="54" />
                                         <Viewbox Width="80" Height="78" Margin="0,10,0,0">
                                             <Canvas Width="90" Height="84">
-                                                <Path Data="M 15,60 L 31,60 L 43,50 L 57,50 C 63,50 63,58 57,60 L 44,64 L 67,56 C 76,53 80,61 71,66 L 48,77 L 29,72 L 15,72 Z"
-                                                      Fill="{DynamicResource ThemeInputBackground}" Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="4" StrokeLineJoin="Round" />
-                                                <Path Data="M 45,47 C 36,35 45,18 55,14 C 65,18 73,35 65,47 C 61,53 49,53 45,47 Z M 49,15 L 46,8 L 63,8 L 61,15"
-                                                      Fill="{DynamicResource ThemeTextForeground}" Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="3" StrokeLineJoin="Round" />
-                                                <Path Data="M 8,56 L 16,56 L 16,75 L 8,75 Z"
-                                                      Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="3" />
+                                                <Path Data="M 15,60 L 31,60 L 43,50 L 57,50 C 63,50 63,58 57,60 L 44,64 L 67,56 C 76,53 80,61 71,66 L 48,77 L 29,72 L 15,72 Z" Fill="{DynamicResource ThemeInputBackground}" Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="4" StrokeLineJoin="Round" />
+                                                <Path Data="M 45,47 C 36,35 45,18 55,14 C 65,18 73,35 65,47 C 61,53 49,53 45,47 Z M 49,15 L 46,8 L 63,8 L 61,15" Fill="{DynamicResource ThemeTextForeground}" Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="3" StrokeLineJoin="Round" />
+                                                <Path Data="M 8,56 L 16,56 L 16,75 L 8,75 Z" Stroke="{DynamicResource ThemeTextForeground}" StrokeThickness="3" />
                                             </Canvas>
                                         </Viewbox>
                                     </StackPanel>

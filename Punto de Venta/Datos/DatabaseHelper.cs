@@ -2,7 +2,7 @@
 using System;
 using System.IO;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Datos
 {
     public static class DatabaseHelper
     {
@@ -47,7 +47,7 @@ namespace Punto_de_Venta
 
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-                -- 1. PRODUCTOS
+               -- 1. PRODUCTOS (Actualizado)
                 CREATE TABLE IF NOT EXISTS Productos (
                     Id INTEGER PRIMARY KEY,
                     Codigo TEXT NOT NULL,
@@ -57,7 +57,8 @@ namespace Punto_de_Venta
                     Ganancia REAL NOT NULL,
                     Precio REAL NOT NULL,
                     Stock INTEGER NOT NULL,
-                    PedirCantidadAlCobrar INTEGER NOT NULL DEFAULT 0
+                    PedirCantidadAlCobrar INTEGER NOT NULL DEFAULT 0,
+                    SeVendePorPeso INTEGER NOT NULL DEFAULT 0 -- NUEVA COLUMNA
                 );
                 CREATE INDEX IF NOT EXISTS IX_Productos_Codigo ON Productos(Codigo);
                 CREATE INDEX IF NOT EXISTS IX_Productos_Nombre ON Productos(Nombre);
@@ -88,14 +89,15 @@ namespace Punto_de_Venta
                     FOREIGN KEY (VentaId) REFERENCES Ventas(Id) ON DELETE CASCADE
                 );
                 CREATE INDEX IF NOT EXISTS IX_VentasDetalle_VentaId ON VentasDetalle(VentaId);
-
-                -- 4. MOVIMIENTOS DE CAJA
+-- 4. MOVIMIENTOS DE CAJA
                 CREATE TABLE IF NOT EXISTS MovimientosCaja (
                     Id INTEGER PRIMARY KEY,
                     FechaHora TEXT NOT NULL,
-                    Tipo TEXT NOT NULL,
+                    Tipo TEXT NOT NULL, -- 'Entrada' o 'Salida'
                     Monto REAL NOT NULL,
-                    Concepto TEXT NOT NULL
+                    Concepto TEXT NOT NULL,
+                    CorteCajaId INTEGER NULL, -- Relación con el turno
+                    FOREIGN KEY (CorteCajaId) REFERENCES CortesCaja(Id) ON DELETE SET NULL
                 );
                 CREATE INDEX IF NOT EXISTS IX_Movimientos_FechaHora ON MovimientosCaja(FechaHora);
 
@@ -117,21 +119,81 @@ namespace Punto_de_Venta
                     Monto REAL NOT NULL,
                     FOREIGN KEY (DeudorId) REFERENCES Deudores(Id) ON DELETE CASCADE
                 );
-
-                -- 7. CORTES DE CAJA
-                CREATE TABLE IF NOT EXISTS CortesCaja (
-                    Id INTEGER PRIMARY KEY,
-                    FechaHora TEXT NOT NULL,
-                    FondoInicial REAL NOT NULL,
-                    VentasEfectivo REAL NOT NULL,
-                    EntradasEfectivo REAL NOT NULL,
-                    SalidasEfectivo REAL NOT NULL,
-                    TotalEsperado REAL NOT NULL,
-                    TotalContado REAL NOT NULL,
-                    Observaciones TEXT
-                );
+CREATE TABLE IF NOT EXISTS CortesCaja (
+    Id INTEGER PRIMARY KEY,
+    FechaHora TEXT NOT NULL,          -- FechaHoraApertura
+    FechaHoraCierre TEXT NULL,        -- Nueva columna
+    Estado TEXT NOT NULL DEFAULT 'Cerrado', -- Nueva columna ('Abierto' o 'Cerrado')
+    FondoInicial REAL NOT NULL,
+    VentasEfectivo REAL NOT NULL DEFAULT 0,
+    EntradasEfectivo REAL NOT NULL DEFAULT 0,
+    SalidasEfectivo REAL NOT NULL DEFAULT 0,
+    TotalEsperado REAL NOT NULL DEFAULT 0,
+    TotalContado REAL NOT NULL DEFAULT 0,
+    Observaciones TEXT
+);
+CREATE TABLE IF NOT EXISTS Promociones (
+    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+    Nombre TEXT NOT NULL,
+    Tipo TEXT NOT NULL,
+    Activa INTEGER NOT NULL DEFAULT 1,
+    FechaInicio TEXT NULL,
+    FechaFin TEXT NULL,
+    ProductoIdPrincipal INTEGER NOT NULL,
+    CantidadMinima INTEGER DEFAULT 1,
+    PrecioEspecial REAL DEFAULT 0.0,
+    ProductoIdSecundario INTEGER NULL,
+    PrecioComboTotal REAL DEFAULT 0.0,
+    PorcentajeDescuento REAL DEFAULT 0.0
+);
             ";
             cmd.ExecuteNonQuery();
+            using (var alterCmd2 = conn.CreateCommand())
+            {
+                alterCmd2.CommandText = "PRAGMA table_info(MovimientosCaja);";
+                bool tieneCorteId = false;
+                using (var reader = alterCmd2.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        if (reader.GetString(1).Equals("CorteCajaId", StringComparison.OrdinalIgnoreCase))
+                        {
+                            tieneCorteId = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!tieneCorteId)
+                {
+                    using var updateCmd2 = conn.CreateCommand();
+                    updateCmd2.CommandText = "ALTER TABLE MovimientosCaja ADD COLUMN CorteCajaId INTEGER NULL;";
+                    updateCmd2.ExecuteNonQuery();
+                }
+            }
+            using (var alterCmd = conn.CreateCommand())
+            {
+                alterCmd.CommandText = "PRAGMA table_info(Productos);";
+                bool tieneSeVendePorPeso = false;
+                using (var reader = alterCmd.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        if (reader.GetString(1).Equals("SeVendePorPeso", StringComparison.OrdinalIgnoreCase))
+                        {
+                            tieneSeVendePorPeso = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!tieneSeVendePorPeso)
+                {
+                    using var updateCmd = conn.CreateCommand();
+                    updateCmd.CommandText = "ALTER TABLE Productos ADD COLUMN SeVendePorPeso INTEGER NOT NULL DEFAULT 0;";
+                    updateCmd.ExecuteNonQuery();
+                }
+            }
         }
         /// <summary>
         /// Migra ventas y movimientos de caja desde los .txt existentes a SQLite si las tablas están vacías.

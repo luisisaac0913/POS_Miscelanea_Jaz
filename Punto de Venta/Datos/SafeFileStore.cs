@@ -3,7 +3,7 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Datos
 {
     public static class SafeFileStore
     {

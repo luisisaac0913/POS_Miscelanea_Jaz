@@ -4,7 +4,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using System.Text;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Modelos
 {
     public class Deudor : INotifyPropertyChanged
     {

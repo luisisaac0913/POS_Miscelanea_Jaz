@@ -1,4 +1,7 @@
-﻿using System;
+﻿using Punto_de_Venta.Datos;
+using Punto_de_Venta.Modelos;
+using Punto_de_Venta.Servicios;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
@@ -15,6 +18,7 @@ using System.Windows.Markup;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
+
 namespace Punto_de_Venta
 {
     public partial class Cobro : Window
@@ -36,6 +40,7 @@ namespace Punto_de_Venta
             bool tieneArticulos = CartGrid.Items.Count > 0;
             EmptyCartPanel.Visibility = tieneArticulos ? Visibility.Collapsed : Visibility.Visible;
         }
+
         // ■ Arrastre y maximizado con doble clic
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
@@ -48,6 +53,7 @@ namespace Punto_de_Venta
                 DragMove();
             }
         }
+
         private void AnimarEntradaProducto()
         {
             var animX = new DoubleAnimation
@@ -71,6 +77,7 @@ namespace Punto_de_Venta
             TotalScaleTransform.BeginAnimation(ScaleTransform.ScaleXProperty, animX);
             TotalScaleTransform.BeginAnimation(ScaleTransform.ScaleYProperty, animY);
         }
+
         private void ActualizarEstadoHardware()
         {
             try
@@ -303,6 +310,7 @@ namespace Punto_de_Venta
             try
             {
                 _catalog = ProductoFileStore.Load();
+                CargarPromocionesDesdeDb();
                 RefreshSuggestions();
             }
             catch (Exception exception)
@@ -313,12 +321,27 @@ namespace Punto_de_Venta
             }
         }
 
+        private List<Promocion> _promocionesCargadas = [];
+
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
+            CargarPromocionesDesdeDb();
             var searchBox = (TextBox)FindName("SearchBox");
             searchBox.Focus();
             Keyboard.Focus(searchBox);
             ((DataGrid)FindName("CartGrid")).SelectedIndex = 0;
+        }
+
+        private void CargarPromocionesDesdeDb()
+        {
+            try
+            {
+                _promocionesCargadas = PromocionDbStore.LoadAll();
+            }
+            catch
+            {
+                _promocionesCargadas = [];
+            }
         }
 
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -772,63 +795,76 @@ namespace Punto_de_Venta
         {
             if (e.Key == Key.Enter)
             {
-                SaveCashMovement();
+                SaveCashMovement_Click(sender, e);
                 e.Handled = true;
             }
         }
 
-        private void SaveCashMovement_Click(object sender, RoutedEventArgs e) => SaveCashMovement();
-
-        private void SaveCashMovement()
+        private void SaveCashMovement_Click(object sender, RoutedEventArgs e)
         {
-            var culture = CultureInfo.GetCultureInfo("es-MX");
-            var amountText = MovementAmountBox.Text.Trim();
-            CajonService.AbrirCajon();
-            if (!decimal.TryParse(amountText, NumberStyles.Number, culture, out var amount) &&
-                !decimal.TryParse(amountText, NumberStyles.Number, CultureInfo.GetCultureInfo("en-US"), out amount) || amount <= 0)
+            MovementValidationMessage.Text = string.Empty;
+
+            // 1. Validar Monto
+            if (!decimal.TryParse(MovementAmountBox.Text, out decimal monto) || monto <= 0)
             {
-                MovementValidationMessage.Text = "Introduce un monto válido mayor a 0.";
-                ToastNotification.Show("Introduce un monto válido mayor a 0", ToastType.Warning);
+                MovementValidationMessage.Text = "Ingresa un monto válido mayor a 0.";
                 MovementAmountBox.Focus();
                 return;
             }
 
-            var concept = MovementConceptBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(concept))
+            // 2. Validar Concepto
+            string concepto = MovementConceptBox.Text.Trim();
+            if (string.IsNullOrEmpty(concepto))
             {
-                if (RbFondo.IsChecked == true) concept = "Fondo de apertura de caja";
-                else if (RbEntrada.IsChecked == true) concept = "Entrada de dinero extra";
-                else concept = "Gasto general de caja";
-            }
-
-            var tipo = RbFondo.IsChecked == true ? "Fondo" : (RbEntrada.IsChecked == true ? "Entrada" : "Salida");
-
-            try
-            {
-                var list = MovimientoCajaFileStore.Load();
-                var nextId = list.Select(m => m.Id).DefaultIfEmpty(0).Max() + 1;
-
-                list.Add(new MovimientoCaja
-                {
-                    Id = nextId,
-                    FechaHora = DateTime.Now,
-                    Tipo = tipo,
-                    Monto = amount,
-                    Concepto = concept
-                });
-
-                MovimientoCajaFileStore.Save(list);
-            }
-            catch (Exception ex)
-            {
-                MovementValidationMessage.Text = $"Error al guardar: {ex.Message}";
-                ToastNotification.Show($"Error al registrar movimiento: {ex.Message}", ToastType.Error);
+                MovementValidationMessage.Text = "Debes ingresar un concepto o motivo.";
+                MovementConceptBox.Focus();
                 return;
             }
 
-            CloseCashMovement();
-            ShowPurchaseFeedback(true, $"Movimiento ({tipo} de {amount.ToString("C2", culture)}) guardado.");
-            ToastNotification.Show($"Movimiento guardado: {tipo} {amount.ToString("C2", culture)}", ToastType.Success);
+            // 3. Determinar el Tipo de Movimiento
+            string tipoMovimiento = "Salida";
+            if (RbEntrada.IsChecked == true) tipoMovimiento = "Entrada";
+            if (RbFondo.IsChecked == true) tipoMovimiento = "Fondo";
+
+            try
+            {
+                // 4. Si es FONDO, debemos abrir el turno en la BD
+                if (tipoMovimiento == "Fondo")
+                {
+                    var turnoActual = TurnoCajaManager.ObtenerTurnoActivo();
+                    if (turnoActual != null)
+                    {
+                        MovementValidationMessage.Text = "Ya existe un turno abierto. Cierra la caja primero.";
+                        return;
+                    }
+
+                    // Abrimos el turno con el fondo indicado
+                    TurnoCajaManager.AbrirTurno(monto);
+                }
+                else
+                {
+                    // 5. Si es ENTRADA o SALIDA, verificar que haya un turno abierto
+                    var turnoActual = TurnoCajaManager.ObtenerTurnoActivo();
+                    if (turnoActual == null)
+                    {
+                        MovementValidationMessage.Text = "Debes abrir caja (ingresar un Fondo) primero.";
+                        return;
+                    }
+
+                    // CORRECCIÓN: Llamada con 3 parámetros (el Manager obtiene el Id por su cuenta)
+                    TurnoCajaManager.RegistrarMovimientoEfectivo(tipoMovimiento, monto, concepto);
+                }
+
+                // 6. Limpiar y cerrar el modal
+                ToastNotification.Show($"Se registró {tipoMovimiento} por {monto:C2}", ToastType.Success);
+                CashMovementOverlay.Visibility = Visibility.Collapsed;
+                MovementAmountBox.Clear();
+                MovementConceptBox.Clear();
+            }
+            catch (Exception ex)
+            {
+                MovementValidationMessage.Text = $"Error: {ex.Message}";
+            }
         }
 
         private void MoveSuggestionSelection(int offset)
@@ -859,21 +895,61 @@ namespace Punto_de_Venta
 
             if (product.PedirCantidadAlCobrar)
             {
-                var modal = new CantidadModal(product.Nombre) { Owner = this };
-                modal.ShowDialog();
+                // REGLA: Identificamos si es un producto pesable por su categoría.
+                // (Ajusta los nombres de las categorías según los que uses en tu catálogo).
+                bool esProductoParaBascula =
+                    string.Equals(product.Categoria, "A Granel", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(product.Categoria, "Frutas y Verduras", StringComparison.OrdinalIgnoreCase) ||
+                    string.Equals(product.Categoria, "Carnes y Salchichonería", StringComparison.OrdinalIgnoreCase);
 
-                if (!modal.Confirmado)
+                if (esProductoParaBascula)
                 {
-                    var sBox = (TextBox)FindName("SearchBox");
-                    sBox?.Clear();
-                    FocusSearch();
+                    // 1. Cerramos el popup de sugerencias para que no estorbe
+                    if (FindName("SuggestionsPopup") is System.Windows.Controls.Primitives.Popup popup) popup.IsOpen = false;
+
+                    // 2. Agregamos el producto al carrito con cantidad 0 (temporal)
+                    AddProduct(product, 0m);
+
+                    // 3. Lo seleccionamos en la tabla para que AbrirModalPesaje sepa a quién pesar
+                    var cartGridScale = (DataGrid)FindName("CartGrid");
+                    var cartItemScale = Cart.FirstOrDefault(item => item.ProductoId == product.Id);
+                    if (cartItemScale != null && cartGridScale != null)
+                    {
+                        cartGridScale.SelectedItem = cartItemScale;
+                        cartGridScale.ScrollIntoView(cartItemScale);
+                    }
+
+                    // 4. Limpiamos buscador, actualizamos la UI y abrimos la ventana de la báscula
+                    var sBoxScale = (TextBox)FindName("SearchBox");
+                    sBoxScale?.Clear();
+
+                    ActualizarVisibilidadEmptyState();
+                    AnimarEntradaProducto();
+
+                    AbrirModalPesaje();
+
+                    // Retornamos de inmediato porque AbrirModalPesaje() maneja su propio flujo
                     return;
                 }
+                else
+                {
+                    // ES PRODUCTO POR PIEZAS (Ej: Gomitas) -> Modal manual tradicional
+                    var modal = new CantidadModal(product.Nombre) { Owner = this };
+                    modal.ShowDialog();
 
-                cantidad = modal.CantidadResult;
+                    if (!modal.Confirmado)
+                    {
+                        var sBox = (TextBox)FindName("SearchBox");
+                        sBox?.Clear();
+                        FocusSearch();
+                        return;
+                    }
+
+                    cantidad = modal.CantidadResult;
+                }
             }
 
-            // Se suma la cantidad total de forma directa y atómica
+            // Flujo normal para productos de 1 sola pieza, o piezas manuales ya confirmadas
             AddProduct(product, cantidad);
 
             var cartGrid = (DataGrid)FindName("CartGrid");
@@ -884,7 +960,7 @@ namespace Punto_de_Venta
                 cartGrid.ScrollIntoView(cartItem);
             }
 
-            ((Popup)FindName("SuggestionsPopup")).IsOpen = false;
+            if (FindName("SuggestionsPopup") is System.Windows.Controls.Primitives.Popup popupCierre) popupCierre.IsOpen = false;
             var searchBox = (TextBox)FindName("SearchBox");
             searchBox?.Clear();
             FocusSearch();
@@ -1064,8 +1140,11 @@ namespace Punto_de_Venta
                 Categoria = category,
                 Costo = cost,
                 Ganancia = margin,
-                Precio = cost + margin
+                Precio = cost + margin,
+                PedirCantidadAlCobrar = QuickChkCantidad.IsChecked == true,
+                SeVendePorPeso = QuickChkBascula.IsChecked == true
             };
+
 
             try
             {
@@ -1104,7 +1183,7 @@ namespace Punto_de_Venta
             var cashBox = (TextBox)FindName("CashReceivedBox");
             if (cashBox == null) return;
 
-            var total = Cart.Sum(item => item.Subtotal);
+            var total = ObtenerTotalNetoVenta();
 
             if (RbEfectivo.IsChecked == true)
             {
@@ -1131,7 +1210,8 @@ namespace Punto_de_Venta
                 FocusSearch();
                 return;
             }
-
+            CargarPromocionesDesdeDb();
+            RefreshSummary();
             ((Popup)FindName("SuggestionsPopup")).IsOpen = false;
             ((Grid)FindName("PaymentOverlay")).Visibility = Visibility.Visible;
             ((TextBox)FindName("CashReceivedBox")).Clear();
@@ -1164,7 +1244,6 @@ namespace Punto_de_Venta
 
             if (cashBox == null || changeText == null) return;
 
-            // Validación numérica del texto ingresado
             if (!decimal.TryParse(cashBox.Text, NumberStyles.Number, culture, out var amountReceived))
             {
                 if (!decimal.TryParse(cashBox.Text, NumberStyles.Number, CultureInfo.GetCultureInfo("en-US"), out amountReceived))
@@ -1173,39 +1252,40 @@ namespace Punto_de_Venta
                     if (changeLabel != null)
                     {
                         changeLabel.Text = "CAMBIO A ENTREGAR";
-                        changeLabel.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
+                        changeLabel.Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113));
                     }
                     if (changeContainer != null)
                     {
-                        changeContainer.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(20, 46, 204, 113));
-                        changeContainer.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 46, 204, 113));
+                        changeContainer.Background = new SolidColorBrush(Color.FromArgb(20, 46, 204, 113));
+                        changeContainer.BorderBrush = new SolidColorBrush(Color.FromArgb(50, 46, 204, 113));
                     }
-                    changeText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
+                    changeText.Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113));
                     if (paymentMessage != null) paymentMessage.Text = string.Empty;
                     if (finalizeButton != null) finalizeButton.IsEnabled = false;
                     return;
                 }
             }
 
-            var total = Cart != null ? Cart.Sum(item => item.Subtotal) : 0m;
+            // ■ CORRECCIÓN: Usar el total neto con promociones aplicadas
+            var total = ObtenerTotalNetoVenta();
 
             // Cubre el monto total
             if (amountReceived >= total)
             {
                 var cambio = amountReceived - total;
                 changeText.Text = cambio.ToString("C2", culture);
-                changeText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113)); // Verde esmeralda (#2ECC71)
+                changeText.Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113));
 
                 if (changeLabel != null)
                 {
                     changeLabel.Text = "CAMBIO A ENTREGAR";
-                    changeLabel.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(46, 204, 113));
+                    changeLabel.Foreground = new SolidColorBrush(Color.FromRgb(46, 204, 113));
                 }
 
                 if (changeContainer != null)
                 {
-                    changeContainer.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(24, 46, 204, 113));
-                    changeContainer.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(60, 46, 204, 113));
+                    changeContainer.Background = new SolidColorBrush(Color.FromArgb(24, 46, 204, 113));
+                    changeContainer.BorderBrush = new SolidColorBrush(Color.FromArgb(60, 46, 204, 113));
                 }
 
                 if (paymentMessage != null) paymentMessage.Text = string.Empty;
@@ -1216,28 +1296,27 @@ namespace Punto_de_Venta
             {
                 var falta = total - amountReceived;
                 changeText.Text = $"-{falta.ToString("C2", culture)}";
-                changeText.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60)); // Rojo suave (#E74C3C)
+                changeText.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
 
                 if (changeLabel != null)
                 {
                     changeLabel.Text = "FALTA POR CUBRIR";
-                    changeLabel.Foreground = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(231, 76, 60));
+                    changeLabel.Foreground = new SolidColorBrush(Color.FromRgb(231, 76, 60));
                 }
 
                 if (changeContainer != null)
                 {
-                    changeContainer.Background = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(20, 231, 76, 60));
-                    changeContainer.BorderBrush = new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(50, 231, 76, 60));
+                    changeContainer.Background = new SolidColorBrush(Color.FromArgb(20, 231, 76, 60));
+                    changeContainer.BorderBrush = new SolidColorBrush(Color.FromArgb(50, 231, 76, 60));
                 }
 
                 if (paymentMessage != null) paymentMessage.Text = "El dinero recibido no cubre el total.";
                 if (finalizeButton != null) finalizeButton.IsEnabled = false;
             }
 
-            // Micro-animación de escala táctil al teclear
             if (changeScale != null)
             {
-                var anim = new System.Windows.Media.Animation.DoubleAnimation
+                var anim = new DoubleAnimation
                 {
                     From = 1.0,
                     To = 1.04,
@@ -1258,7 +1337,7 @@ namespace Punto_de_Venta
             var finalizeButton = (Button)FindName("FinalizeButton");
             var culture = CultureInfo.GetCultureInfo("es-MX");
 
-            var total = Cart.Sum(item => item.Subtotal);
+            var total = ObtenerTotalNetoVenta();
 
             if (decimal.TryParse(cashBox.Text, NumberStyles.Number, CultureInfo.InvariantCulture, out var paid) ||
                 decimal.TryParse(cashBox.Text, NumberStyles.Number, culture, out paid))
@@ -1281,7 +1360,7 @@ namespace Punto_de_Venta
                 return;
             }
 
-            var total = Cart.Sum(item => item.Subtotal);
+            var total = ObtenerTotalNetoVenta();
             if (amountReceived < total || Cart.Count == 0)
             {
                 ((TextBlock)FindName("PaymentMessage")).Text = "El dinero recibido no cubre el total.";
@@ -1480,6 +1559,17 @@ namespace Punto_de_Venta
             RefreshSummary();
         }
 
+        /// <summary>
+        /// Devuelve el total final a pagar descontando las promociones aplicadas.
+        /// </summary>
+        private decimal ObtenerTotalNetoVenta()
+        {
+            if (Cart == null || Cart.Count == 0) return 0m;
+            var subtotalBruto = Cart.Sum(item => item.Subtotal);
+            var resultadoPromo = PromocionEngine.Evaluar(Cart, _promocionesCargadas ?? []);
+            return Math.Max(0m, subtotalBruto - resultadoPromo.DescuentoTotal);
+        }
+
         private void Cart_CollectionChanged(object? sender, NotifyCollectionChangedEventArgs e) => RefreshSummary();
 
         private void CartItem_PropertyChanged(object? sender, PropertyChangedEventArgs e) => RefreshSummary();
@@ -1488,11 +1578,16 @@ namespace Punto_de_Venta
         {
             var culture = CultureInfo.GetCultureInfo("es-MX");
             var itemCount = Cart.Count;
-            var total = Cart.Sum(item => item.Subtotal);
-
+            var subtotalBruto = Cart.Sum(item => item.Subtotal);
+            var resultadoPromo = PromocionEngine.Evaluar(Cart, _promocionesCargadas ?? []);
+            var totalConDescuento = Math.Max(0m, subtotalBruto - resultadoPromo.DescuentoTotal);
             ((TextBlock)FindName("ProductCountText")).Text = itemCount.ToString(culture);
-            ((TextBlock)FindName("TotalText")).Text = total.ToString("C2", culture);
+            ((TextBlock)FindName("TotalText")).Text = totalConDescuento.ToString("C2", culture);
             ((TextBlock)FindName("SaleNumberText")).Text = $"#{_saleNumber}";
+            if (FindName("PromotionsCountText") is TextBlock promoBlock)
+            {
+                promoBlock.Text = resultadoPromo.PromocionesAplicadasCount.ToString(culture);
+            }
         }
     }
 }

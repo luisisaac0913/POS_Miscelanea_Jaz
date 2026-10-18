@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Modelos
 {
     public class ItemCarrito : INotifyPropertyChanged
     {

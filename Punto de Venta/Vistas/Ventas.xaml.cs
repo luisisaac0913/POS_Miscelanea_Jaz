@@ -1,3 +1,5 @@
+using Punto_de_Venta.Datos;
+using Punto_de_Venta.Modelos;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -519,96 +521,72 @@ namespace Punto_de_Venta
                 return;
             }
 
-            var today = DateTime.Today;
-            var culture = CultureInfo.GetCultureInfo("es-MX");
-
-            // 1. DETERMINAR INICIO DEL TURNO ACTUAL
-            // Si ya hubo un corte hoy, el turno actual inicia a partir de la fecha/hora de ese corte.
-            var cortesDelDia = CorteCajaFileStore.Load()
-                .Where(c => c.FechaHora.Date == today)
-                .OrderByDescending(c => c.FechaHora)
-                .ToList();
-
-            DateTime inicioTurno = cortesDelDia.Count > 0 ? cortesDelDia.First().FechaHora : today;
-
-            // 2. VENTAS DEL TURNO ACTUAL (Excluyendo canceladas)
-            var turnoValidSales = Sales
-                .Where(sale => sale.FechaHora >= inicioTurno && !string.Equals(sale.Estado, "Cancelada", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            // Ventas pendientes de cerrar
-            var openSales = turnoValidSales
-                .Where(sale => string.Equals(sale.Estado, "Abierta", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            var turnoCreditSales = turnoValidSales
-                .Where(sale => string.Equals(sale.Estado, "Fiado", StringComparison.OrdinalIgnoreCase) ||
-                               string.Equals(sale.MetodoPago, "Fiado", StringComparison.OrdinalIgnoreCase))
-                .ToList();
-
-            // 3. AGRUPAR IMPORTES POR MÉTODO DE PAGO
-            var cashSales = turnoValidSales
-                .Where(s => !string.Equals(s.Estado, "Fiado", StringComparison.OrdinalIgnoreCase) &&
-                            string.Equals(s.MetodoPago, "Efectivo", StringComparison.OrdinalIgnoreCase))
-                .Sum(s => s.Total);
-
-            var cardSales = turnoValidSales
-                .Where(s => !string.Equals(s.Estado, "Fiado", StringComparison.OrdinalIgnoreCase) &&
-                            string.Equals(s.MetodoPago, "Tarjeta", StringComparison.OrdinalIgnoreCase))
-                .Sum(s => s.Total);
-
-            var transferSales = turnoValidSales
-                .Where(s => !string.Equals(s.Estado, "Fiado", StringComparison.OrdinalIgnoreCase) &&
-                            string.Equals(s.MetodoPago, "Transferencia", StringComparison.OrdinalIgnoreCase))
-                .Sum(s => s.Total);
-
-            var creditSales = turnoCreditSales.Sum(s => s.Total);
-            var profitTotal = turnoValidSales.Sum(s => s.GananciaTotal);
-
-            // 4. MOVIMIENTOS DE CAJA DEL TURNO ACTUAL
-            CargarMovimientosCaja();
-            var turnoMovements = _movimientos
-                .Where(m => m.FechaHora >= inicioTurno)
-                .ToList();
-
-            var fondo = turnoMovements
-                .Where(m => string.Equals(m.Tipo, "Fondo", StringComparison.OrdinalIgnoreCase))
-                .Sum(m => m.Monto);
-
-            var entradas = turnoMovements
-                .Where(m => string.Equals(m.Tipo, "Entrada", StringComparison.OrdinalIgnoreCase))
-                .Sum(m => m.Monto);
-
-            var salidas = turnoMovements
-                .Where(m => string.Equals(m.Tipo, "Salida", StringComparison.OrdinalIgnoreCase) ||
-                            string.Equals(m.Tipo, "Gasto", StringComparison.OrdinalIgnoreCase))
-                .Sum(m => m.Monto);
-
-            // TOTAL EN CAJÓN FÍSICO (Efectivo neto esperado)
-            var totalEnCajon = fondo + cashSales + entradas - salidas;
-
-            if (turnoValidSales.Count == 0 && turnoMovements.Count == 0)
+            // 1. Verificamos el estado del turno actual en SQLite
+            var turnoActivo = TurnoCajaManager.ObtenerTurnoActivo();
+            if (turnoActivo == null)
             {
-                ToastNotification.Show("No hay ventas registradas ni movimientos en este turno", ToastType.Info);
+                ToastNotification.Show("No hay ningún turno abierto. Primero debe registrar un Fondo de Caja.", ToastType.Info);
                 return;
             }
 
-            // 5. ARQUEO CIEGO: Conteo físico
+            decimal fondo = turnoActivo.FondoInicial;
+            decimal cashSales = 0m;
+            decimal entradas = 0m;
+            decimal salidas = 0m;
+
+            // 2. Extraer todo DIRECTAMENTE DE SQLITE
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                // Ventas en Efectivo Abiertas (SQL puro)
+                using (var cmdVentas = conn.CreateCommand())
+                {
+                    cmdVentas.CommandText = "SELECT COALESCE(SUM(Total), 0) FROM Ventas WHERE UPPER(TRIM(MetodoPago)) = 'EFECTIVO' AND UPPER(TRIM(Estado)) = 'ABIERTA';";
+                    cashSales = Convert.ToDecimal(cmdVentas.ExecuteScalar());
+                }
+
+                // Entradas y Salidas del Turno Actual (SQL puro)
+                using (var cmdMovs = conn.CreateCommand())
+                {
+                    cmdMovs.CommandText = "SELECT COALESCE(SUM(CASE WHEN Tipo = 'Entrada' THEN Monto ELSE 0 END), 0) AS Entradas, COALESCE(SUM(CASE WHEN Tipo = 'Salida' THEN Monto ELSE 0 END), 0) AS Salidas FROM MovimientosCaja WHERE CorteCajaId = @id;";
+                    cmdMovs.Parameters.AddWithValue("@id", turnoActivo.Id);
+                    using (var reader = cmdMovs.ExecuteReader())
+                    {
+                        if (reader.Read())
+                        {
+                            entradas = Convert.ToDecimal(reader.GetDouble(0));
+                            salidas = Convert.ToDecimal(reader.GetDouble(1));
+                        }
+                    }
+                }
+            }
+
+            // 3. CALCULAR EFECTIVO ESPERADO FÍSICO
+            var totalEnCajon = fondo + cashSales + entradas - salidas;
+
+            // Si literalmente no hay dinero movido, bloqueamos
+            if (totalEnCajon == 0 && cashSales == 0 && entradas == 0 && salidas == 0 && fondo == 0)
+            {
+                ToastNotification.Show("El turno está en ceros. No hay ventas ni movimientos.", ToastType.Info);
+                return;
+            }
+
+            // 4. ARQUEO CIEGO: Llamar al modal
             var modalCiego = new CorteCiegoModal(totalEnCajon) { Owner = this };
             modalCiego.ShowDialog();
 
             if (!modalCiego.Realizado)
             {
-                return;
+                return; // Cancelado
             }
 
             var contadoFisico = modalCiego.TotalContadoResult;
             var diferencia = contadoFisico - totalEnCajon;
+            var culture = System.Globalization.CultureInfo.GetCultureInfo("es-MX");
             var diferenciaTexto = diferencia == 0m
                 ? "$0.00 (Exacto)"
                 : (diferencia > 0m ? $"+{diferencia.ToString("C2", culture)} (Sobrante)" : $"{diferencia.ToString("C2", culture)} (Faltante)");
 
-            // 6. RESUMEN DE AUDITORÍA
+            // 5. RESUMEN Y CONFIRMACIÓN DE AUDITORÍA
             var desglose = $"--- RESUMEN DE CORTE DE CAJA ---\n\n" +
                            $"Fondo Inicial:           {fondo.ToString("C2", culture)}\n" +
                            $"(+) Ventas en Efectivo:  {cashSales.ToString("C2", culture)}\n" +
@@ -618,12 +596,7 @@ namespace Punto_de_Venta
                            $"EFECTIVO EN SISTEMA:     {totalEnCajon.ToString("C2", culture)}\n" +
                            $"EFECTIVO CONTADO:        {contadoFisico.ToString("C2", culture)}\n" +
                            $"DIFERENCIA:              {diferenciaTexto}\n\n" +
-                           $"--- BANCO / ELECTRÓNICO ---\n" +
-                           $"Terminal / Tarjeta:      {cardSales.ToString("C2", culture)}\n" +
-                           $"Transferencias:          {transferSales.ToString("C2", culture)}\n\n" +
-                           $"[Ventas Fiadas Hoy]:     {creditSales.ToString("C2", culture)}\n" +
-                           $"Ganancia total del día:  {profitTotal.ToString("C2", culture)}\n\n" +
-                           $"¿Deseas confirmar el corte de caja?";
+                           $"¿Deseas confirmar el cierre de caja?";
 
             var confirmation = MessageBox.Show(this, desglose, "Confirmar Cierre de Caja", MessageBoxButton.YesNo, MessageBoxImage.Question);
             if (confirmation != MessageBoxResult.Yes)
@@ -631,53 +604,39 @@ namespace Punto_de_Venta
                 return;
             }
 
-            // 7. PERSISTIR ARQUEO EN CORTES.TXT
+            // 6. PERSISTIR CIERRE EN SQLITE 
             try
             {
-                var cortes = CorteCajaFileStore.Load();
-                var nextCorteId = cortes.Select(c => c.Id).DefaultIfEmpty(0).Max() + 1;
-                BackupService.GenerarRespaldo("Corte");
-                cortes.Add(new CorteCaja
-                {
-                    Id = nextCorteId,
-                    FechaHora = DateTime.Now,
-                    FondoInicial = fondo,
-                    VentasEfectivo = cashSales,
-                    EntradasEfectivo = entradas,
-                    SalidasEfectivo = salidas,
-                    TotalEsperado = totalEnCajon,
-                    TotalContado = contadoFisico,
-                    Observaciones = diferenciaTexto
-                });
+                // Cierra el turno en la tabla CortesCaja
+                TurnoCajaManager.CerrarTurno(turnoActivo, contadoFisico, diferenciaTexto);
 
-                CorteCajaFileStore.Save(cortes);
+                // Cierra todas las ventas abiertas directamente en SQLite
+                using (var conn = DatabaseHelper.GetConnection())
+                {
+                    using (var updateVentasCmd = conn.CreateCommand())
+                    {
+                        updateVentasCmd.CommandText = "UPDATE Ventas SET Estado = 'Cerrada' WHERE Estado = 'Abierta';";
+                        updateVentasCmd.ExecuteNonQuery();
+                    }
+                }
+
+                // Refrescar lista visual (vuelve a hacer SELECT a SQLite)
+                Sales.Clear();
+                var loadedSales = VentaFileStore.Load().OrderByDescending(s => s.FechaHora).ThenByDescending(s => s.Id);
+                foreach (var sale in loadedSales)
+                {
+                    HydrateSaleProfit(sale);
+                    Sales.Add(sale);
+                }
+
+                ToastNotification.Show("Corte de caja finalizado exitosamente", ToastType.Success);
+                SalesView.Refresh();
+                RefreshMetrics();
             }
             catch (Exception ex)
             {
                 ToastNotification.Show($"Error al registrar auditoría: {ex.Message}", ToastType.Error);
             }
-
-            // 8. CIERRE DE VENTAS DEL TURNO
-            if (openSales.Count > 0)
-            {
-                foreach (var sale in openSales)
-                {
-                    sale.Estado = "Cerrada";
-                }
-
-                if (!TrySave())
-                {
-                    foreach (var sale in openSales)
-                    {
-                        sale.Estado = "Abierta";
-                    }
-                    return;
-                }
-            }
-
-            ToastNotification.Show("Corte de caja finalizado exitosamente", ToastType.Success);
-            SalesView.Refresh();
-            RefreshMetrics();
         }
 
         private bool CanWrite()

@@ -13,6 +13,8 @@ using System.Windows.Threading;
 using LiveChartsCore;
 using LiveChartsCore.SkiaSharpView;
 using LiveChartsCore.SkiaSharpView.Painting;
+using Punto_de_Venta.Datos;
+using Punto_de_Venta.Modelos;
 using SkiaSharp;
 
 namespace Punto_de_Venta

@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Punto_de_Venta.Modelos;
+using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Drawing.Printing;
@@ -6,7 +7,7 @@ using System.Globalization;
 using System.IO;
 using System.Text;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Servicios
 {
     public static class TicketService
     {

@@ -1,11 +1,13 @@
 ﻿using System;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Modelos
 {
     public class CorteCaja
     {
         public int Id { get; set; }
-        public DateTime FechaHora { get; set; } = DateTime.Now;
+        public DateTime FechaHora { get; set; } = DateTime.Now; // FechaHoraApertura
+        public DateTime? FechaHoraCierre { get; set; }
+        public string Estado { get; set; } = "Cerrado"; // "Abierto" o "Cerrado"
         public decimal FondoInicial { get; set; }
         public decimal VentasEfectivo { get; set; }
         public decimal EntradasEfectivo { get; set; }

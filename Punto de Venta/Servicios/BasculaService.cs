@@ -5,7 +5,7 @@ using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Servicios
 {
     public static class BasculaService
     {
@@ -162,11 +162,19 @@ namespace Punto_de_Venta
             peso = 0m;
             if (string.IsNullOrWhiteSpace(respuesta)) return false;
 
-            var match = Regex.Match(respuesta, @"[-+]?[0-9]*\.?[0-9]+");
+            // Busca específicamente un formato como "0.250" o "12.000", ignorando letras como "kg" o símbolos.
+            var match = Regex.Match(respuesta, @"\b\d+\.\d{1,3}\b");
+
             if (match.Success)
             {
-                return decimal.TryParse(match.Value, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.InvariantCulture, out peso) ||
-                       decimal.TryParse(match.Value, NumberStyles.Number | NumberStyles.AllowDecimalPoint, CultureInfo.GetCultureInfo("es-MX"), out peso);
+                return decimal.TryParse(match.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out peso);
+            }
+
+            // Fallback por si la báscula manda el número entero sin decimales (raro, pero pasa)
+            var matchEntero = Regex.Match(respuesta, @"\b\d+\b");
+            if (matchEntero.Success)
+            {
+                return decimal.TryParse(matchEntero.Value, NumberStyles.Number, CultureInfo.InvariantCulture, out peso);
             }
 
             return false;

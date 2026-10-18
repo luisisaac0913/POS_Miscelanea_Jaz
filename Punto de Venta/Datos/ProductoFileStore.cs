@@ -1,8 +1,9 @@
 using Microsoft.Data.Sqlite;
+using Punto_de_Venta.Modelos;
 using System;
 using System.Collections.Generic;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Datos
 {
     public static class ProductoFileStore
     {

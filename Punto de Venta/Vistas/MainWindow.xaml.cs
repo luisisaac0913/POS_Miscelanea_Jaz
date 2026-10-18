@@ -1,4 +1,7 @@
 ﻿using Microsoft.Win32;
+using Punto_de_Venta.Datos;
+using Punto_de_Venta.Modelos;
+using Punto_de_Venta.Servicios;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -19,6 +22,7 @@ namespace Punto_de_Venta
     {
         private readonly DispatcherTimer _clockTimer;
         private bool _isShuttingDown;
+
         public MainWindow()
         {
             InitializeComponent();
@@ -52,6 +56,7 @@ namespace Punto_de_Venta
             UpdateClock();
             _clockTimer.Start();
         }
+
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -64,20 +69,10 @@ namespace Punto_de_Venta
             }
         }
 
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState.Minimized;
-        }
+        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
+        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
+        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e)
-        {
-            WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        }
-
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
-        {
-            Close();
-        }
         private void UpdateClock()
         {
             var now = DateTime.Now;
@@ -96,6 +91,7 @@ namespace Punto_de_Venta
 
         // Navegación a Módulos Principales
         private void Cobro_Click(object sender, RoutedEventArgs e) => ShowSection(new Cobro());
+
         private void Inventario_Click(object sender, RoutedEventArgs e)
         {
             if (SolicitarAutorizacion())
@@ -103,6 +99,7 @@ namespace Punto_de_Venta
                 ShowSection(new Inventario());
             }
         }
+
         private void Ventas_Click(object sender, RoutedEventArgs e)
         {
             if (SolicitarAutorizacion())
@@ -110,7 +107,9 @@ namespace Punto_de_Venta
                 ShowSection(new Ventas());
             }
         }
+
         private void Prestamos_Click(object sender, RoutedEventArgs e) => ShowSection(new Prestamos());
+
         private void Graficas_Click(object sender, RoutedEventArgs e)
         {
             if (SolicitarAutorizacion())
@@ -119,7 +118,6 @@ namespace Punto_de_Venta
             }
         }
 
-        // Reemplazo seguro de Actualizar: Apertura de Configuración
         private void Configuracion_Click(object sender, RoutedEventArgs e)
         {
             if (SolicitarAutorizacion())
@@ -128,23 +126,28 @@ namespace Punto_de_Venta
             }
         }
 
-        // Compatibilidad por si en MainWindow.xaml aún dice Actualizar_Click
         private void Actualizar_Click(object sender, RoutedEventArgs e) => Configuracion_Click(sender, e);
+
+        // ■ NUEVO: Apertura de la ventana de Promociones protegida con PIN
+        private void Promociones_Click(object sender, RoutedEventArgs e)
+        {
+            if (SolicitarAutorizacion())
+            {
+                ShowSection(new Promociones());
+            }
+        }
 
         private void ShowSection(Window section)
         {
             var isMaximized = WindowState == WindowState.Maximized;
-
             section.Owner = this;
 
             if (isMaximized)
             {
-                // Si el menú está maximizado, la sección arranca maximizada directamente
                 section.WindowState = WindowState.Maximized;
             }
             else
             {
-                // Si está en ventana normal, hereda exactamente posición y tamaño
                 section.WindowStartupLocation = WindowStartupLocation.Manual;
                 section.Left = Left;
                 section.Top = Top;
@@ -153,7 +156,6 @@ namespace Punto_de_Venta
                 section.WindowState = WindowState.Normal;
             }
 
-            // Ocultar menú principal
             Hide();
 
             try
@@ -162,8 +164,6 @@ namespace Punto_de_Venta
             }
             finally
             {
-                // Al volver (por ESC o al cerrar la ventana secundaria):
-                // Si el usuario maximizó o restauró dentro de la sección, sincronizamos el menú con cómo quedó la sección
                 if (section.WindowState == WindowState.Maximized)
                 {
                     WindowState = WindowState.Maximized;
@@ -177,12 +177,12 @@ namespace Punto_de_Venta
                     Height = section.Height;
                 }
 
-                // Mostramos el menú principal sin alterar su estado
                 Show();
                 Activate();
                 Focus();
             }
         }
+
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (ExportarOverlay.Visibility == Visibility.Visible)
@@ -226,8 +226,15 @@ namespace Punto_de_Venta
                     Exportar_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
+
+                // Atajo 8 para abrir Promociones directamente desde teclado
+                case Key.D8:
+                    Promociones_Click(this, new RoutedEventArgs());
+                    e.Handled = true;
+                    break;
             }
         }
+
         #region Importación y Carga de Catálogo
         private void BtnSubirLista_Click(object sender, RoutedEventArgs e)
         {
@@ -253,10 +260,8 @@ namespace Punto_de_Venta
                     ? File.ReadAllLines(rutaDestino).ToList()
                     : new List<string>();
 
-                // Usamos como clave el ID numérico único del producto para que NUNCA se sobreescriban
                 var catalogoPorId = new Dictionary<int, Producto>();
 
-                // 1. Cargar productos que ya existen actualmente en el sistema
                 foreach (var linea in productosExistentes)
                 {
                     if (string.IsNullOrWhiteSpace(linea)) continue;
@@ -268,21 +273,17 @@ namespace Punto_de_Venta
                 }
 
                 int maxId = catalogoPorId.Keys.DefaultIfEmpty(0).Max();
-                int contadorProcesados = 0;
 
-                // 2. Fusionar / Incorporar líneas del archivo subido
                 foreach (var linea in lineasNuevas)
                 {
                     if (string.IsNullOrWhiteSpace(linea)) continue;
                     var prod = ParsearLineaProducto(linea);
                     if (prod == null) continue;
 
-                    // Si el producto ya existe por ID, se actualiza
                     if (prod.Id > 0 && catalogoPorId.ContainsKey(prod.Id))
                     {
                         catalogoPorId[prod.Id] = prod;
                     }
-                    // Si el ID ya está ocupado por otro producto diferente o viene en 0, asignamos un ID nuevo
                     else if (prod.Id <= 0 || catalogoPorId.ContainsKey(prod.Id))
                     {
                         maxId++;
@@ -294,11 +295,8 @@ namespace Punto_de_Venta
                         if (prod.Id > maxId) maxId = prod.Id;
                         catalogoPorId[prod.Id] = prod;
                     }
-
-                    contadorProcesados++;
                 }
 
-                // 3. Escribir todas las líneas normalizadas de forma atómica y ordenada por ID
                 var lineasAGuardar = catalogoPorId.Values
                     .OrderBy(p => p.Id)
                     .Select(p => string.Join("//",
@@ -408,50 +406,6 @@ namespace Punto_de_Venta
                 return val;
             }
             return 0m;
-        }
-
-        private static string NormalizarLineaProducto(string[] parts)
-        {
-            var id = parts[0].Trim();
-            var codigo = parts[1].Trim();
-            var nombre = parts[2].Trim();
-
-            if (parts.Length >= 8)
-            {
-                var categoria = string.IsNullOrWhiteSpace(parts[3]) ? "N/A" : parts[3].Trim();
-                var costo = parts[4].Trim();
-                var ganancia = parts[5].Trim();
-                var precio = parts[6].Trim();
-                var stock = int.TryParse(parts[7].Trim(), out var s) ? s.ToString() : "0";
-                return string.Join("//", id, codigo, nombre, categoria, costo, ganancia, precio, stock);
-            }
-
-            if (parts.Length == 7)
-            {
-                var categoria = string.IsNullOrWhiteSpace(parts[3]) ? "N/A" : parts[3].Trim();
-                var costo = parts[4].Trim();
-                var ganancia = parts[5].Trim();
-                var precio = parts[6].Trim();
-                return string.Join("//", id, codigo, nombre, categoria, costo, ganancia, precio, "0");
-            }
-
-            if (parts.Length == 6)
-            {
-                var costo = parts[3].Trim();
-                var ganancia = parts[4].Trim();
-                var precio = parts[5].Trim();
-                return string.Join("//", id, codigo, nombre, "N/A", costo, ganancia, precio, "0");
-            }
-
-            if (parts.Length == 5)
-            {
-                var precio = parts[3].Trim();
-                var categoria = string.IsNullOrWhiteSpace(parts[4]) ? "N/A" : parts[4].Trim();
-                return string.Join("//", id, codigo, nombre, categoria, "0.00", precio, precio, "0");
-            }
-
-            var precioBase = parts[3].Trim();
-            return string.Join("//", id, codigo, nombre, "N/A", "0.00", precioBase, precioBase, "0");
         }
         #endregion
 

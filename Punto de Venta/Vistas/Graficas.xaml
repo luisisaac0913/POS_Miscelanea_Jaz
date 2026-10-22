@@ -135,6 +135,14 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style TargetType="DatePickerTextBox">
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
     </Window.Resources>
 
     <!-- Contenedor con esquinas redondeadas y fondo dinámico -->
@@ -225,15 +233,69 @@
                     </Grid.ColumnDefinitions>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                        <!-- Selector de Periodo iOS (Hoy, Semana, Mes, Año) -->
-                        <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="11" Padding="3" VerticalAlignment="Center">
-                            <StackPanel Orientation="Horizontal">
-                                <Button x:Name="DayButton" Content="   Hoy   " Style="{StaticResource SegmentButtonStyle}" Click="DayButton_Click" />
-                                <Button x:Name="WeekButton" Content="  Semana " Style="{StaticResource SegmentButtonStyle}" Click="WeekButton_Click" />
-                                <Button x:Name="MonthButton" Content="   Mes   " Style="{StaticResource SegmentButtonStyle}" Click="MonthButton_Click" />
-                                <Button x:Name="YearButton" Content="   Año   " Style="{StaticResource SegmentButtonStyle}" Click="YearButton_Click" />
-                            </StackPanel>
-                        </Border>
+<Button x:Name="BtnExportarPdf" 
+        Width="220" Height="40" 
+        HorizontalAlignment="Right" 
+        Margin="10,10,20,10"
+        Cursor="Hand"
+        Click="ExportarReporteDia_Click">
+    <Button.Template>
+        <ControlTemplate TargetType="Button">
+            <Border Background="#1597a7" 
+                    CornerRadius="8" 
+                    BorderThickness="0">
+                <TextBlock Text="📥Exportar a PDF" 
+                           Foreground="White" 
+                           FontWeight="SemiBold" 
+                           FontSize="14" 
+                           HorizontalAlignment="Center" 
+                           VerticalAlignment="Center"/>
+            </Border>
+        </ControlTemplate>
+    </Button.Template>
+</Button>
+                        <!-- CONTENEDOR DE PERIODOS (Se alternan el Normal y el Custom) -->
+                        <Grid VerticalAlignment="Center">
+
+                            <!-- Selector de Periodo iOS (Hoy, Semana, Mes, Año, Rango) -->
+                            <Border x:Name="NormalPeriodContainer" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="11" Padding="3" VerticalAlignment="Center">
+                                <StackPanel Orientation="Horizontal">
+                                    <Button x:Name="DayButton" Content="   Hoy   " Style="{StaticResource SegmentButtonStyle}" Click="DayButton_Click" />
+                                    <Button x:Name="WeekButton" Content="  Semana " Style="{StaticResource SegmentButtonStyle}" Click="WeekButton_Click" />
+                                    <Button x:Name="MonthButton" Content="   Mes   " Style="{StaticResource SegmentButtonStyle}" Click="MonthButton_Click" />
+                                    <Button x:Name="YearButton" Content="   Año   " Style="{StaticResource SegmentButtonStyle}" Click="YearButton_Click" />
+                                    <Button x:Name="CustomButton" Content="  Rango  " Style="{StaticResource SegmentButtonStyle}" Click="CustomButton_Click" />
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Selector Custom (Oculto por defecto) -->
+                            <Border x:Name="CustomPeriodContainer" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="11" Padding="3" VerticalAlignment="Center" Visibility="Collapsed">
+                                <StackPanel Orientation="Horizontal">
+                                    <DatePicker x:Name="StartDatePicker" Width="105" Margin="4,0" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource ThemeTextForeground}" />
+                                    <TextBlock Text="a" VerticalAlignment="Center" Foreground="{DynamicResource ThemeMutedForeground}" Margin="2,0" />
+                                    <DatePicker x:Name="EndDatePicker" Width="105" Margin="4,0" BorderThickness="0" Background="Transparent" Foreground="{DynamicResource ThemeTextForeground}" />
+
+                                    <Button Content="Aplicar" Margin="4,0,0,0" Padding="10,0" Background="{DynamicResource ThemeAccent}" Foreground="White" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" FontWeight="Bold" Cursor="Hand" Click="ApplyCustomDate_Click">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                                    <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                    <Button Content="✕" Margin="4,0" Padding="8,0" Background="Transparent" Foreground="{DynamicResource ThemeTextForeground}" BorderThickness="0" Cursor="Hand" Click="CancelCustomDate_Click">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                                    <ContentPresenter VerticalAlignment="Center" HorizontalAlignment="Center" />
+                                                </Border>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </StackPanel>
+                            </Border>
+                        </Grid>
 
                         <!-- Botón de Ayuda -->
                         <Button Content="Ayuda" Height="36" Padding="14,0" Background="{DynamicResource ThemeInputBackground}" Foreground="{DynamicResource ThemeTextForeground}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" Cursor="Hand" Margin="10,0,10,0" Click="HelpButton_Click">
@@ -355,8 +417,7 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock x:Name="ChartTitleText" Text="VS
-                                       " FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,12" />
+                            <TextBlock x:Name="ChartTitleText" Text="VS" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,12" />
 
                             <!-- Gráfica Cartesiana LiveCharts (Barras / Líneas) -->
                             <lvc:CartesianChart x:Name="MainChartView" Grid.Row="1" Series="{Binding SeriesPrincipal}" XAxes="{Binding EjesXPrincipal}" YAxes="{Binding EjesYPrincipal}" />
@@ -390,7 +451,8 @@
                                     <ItemsControl ItemsSource="{Binding CortesAuditoria}">
                                         <ItemsControl.ItemTemplate>
                                             <DataTemplate>
-                                                <Border Padding="12,10" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ThemeBorder}">
+                                                <!-- EVENTO DE DOBLE CLIC AQUÍ -->
+                                                <Border Padding="12,10" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ThemeBorder}" Background="Transparent" Cursor="Hand" MouseLeftButtonDown="CorteItem_MouseDown">
                                                     <Grid>
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="130" />
@@ -528,6 +590,85 @@
                         </Grid>
                     </Border>
                 </Grid>
+
+                <!-- ================= MODAL: HISTORIAL DE MOVIMIENTOS ================= -->
+                <Grid x:Name="MovimientosOverlay" Grid.RowSpan="3" Panel.ZIndex="999" Background="#66000000" Visibility="Collapsed">
+                    <Border Width="550" MaxHeight="500" Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="18" Padding="20" HorizontalAlignment="Center" VerticalAlignment="Center" Effect="{StaticResource AppleModalShadow}">
+                        <Grid>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="*" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+
+                            <!-- Título del Modal -->
+                            <TextBlock x:Name="MovimientosModalTitle" Text="Movimientos del Turno" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,16" />
+
+                            <!-- Contenedor Estilo Préstamos -->
+                            <Border Grid.Row="1" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Padding="12,12,4,12">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto" />
+                                        <RowDefinition Height="*" />
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Encabezados de Columna -->
+                                    <Grid Grid.Row="0" Margin="0,0,12,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="80" />
+                                            <ColumnDefinition Width="80" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="90" />
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Grid.Column="0" Text="Hora" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                        <TextBlock Grid.Column="1" Text="Tipo" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                        <TextBlock Grid.Column="2" Text="Concepto" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                        <TextBlock Grid.Column="3" Text="Monto" FontSize="12" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" HorizontalAlignment="Right" />
+                                    </Grid>
+
+                                    <!-- Lista de Movimientos sin líneas blancas -->
+                                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Margin="0,0,4,0">
+                                        <ItemsControl x:Name="MovimientosTurnoGrid">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border Padding="0,10" BorderThickness="0,0,0,1" BorderBrush="{DynamicResource ThemeBorder}">
+                                                        <Grid>
+                                                            <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="80" />
+                                                                <ColumnDefinition Width="80" />
+                                                                <ColumnDefinition Width="*" />
+                                                                <ColumnDefinition Width="90" />
+                                                            </Grid.ColumnDefinitions>
+                                                            <TextBlock Grid.Column="0" Text="{Binding FechaHora, StringFormat=t}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+
+                                                            <!-- Colorear el tipo de movimiento -->
+                                                            <TextBlock Grid.Column="1" Text="{Binding Tipo}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" />
+
+                                                            <TextBlock Grid.Column="2" Text="{Binding Concepto}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Margin="0,0,8,0" />
+                                                            <TextBlock Grid.Column="3" Text="{Binding Monto, StringFormat=C2}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" HorizontalAlignment="Right" VerticalAlignment="Center" />
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </ScrollViewer>
+                                </Grid>
+                            </Border>
+
+                            <!-- Botón Cerrar -->
+                            <Button Grid.Row="2" Content="Cerrar (Esc)" Height="42" Width="140" HorizontalAlignment="Right" Margin="0,16,0,0" Foreground="{DynamicResource ThemeTextForeground}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Cursor="Hand" Click="CloseMovimientosOverlay_Click">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+                    </Border>
+                </Grid>
+
             </Grid>
         </Grid>
     </Border>

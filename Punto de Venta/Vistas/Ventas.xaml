@@ -215,6 +215,14 @@
                 </Setter.Value>
             </Setter>
         </Style>
+        <Style TargetType="DatePickerTextBox">
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI" />
+            <Setter Property="FontSize" Value="13" />
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
     </Window.Resources>
 
     <!-- ■ INICIO: Contenedor con esquinas redondeadas y fondo dinámico -->

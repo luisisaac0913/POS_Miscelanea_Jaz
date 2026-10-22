@@ -8,24 +8,18 @@ namespace Punto_de_Venta
 {
     public static class TurnoCajaManager
     {
-        // Añadimos un flag para validar solo la primera vez que se use en la sesión
         private static bool _esquemaValidado = false;
 
-        private static void ValidarEsquemaBD(SqliteConnection conn)
+        public static void ValidarEsquemaBD(SqliteConnection conn)
         {
             if (_esquemaValidado) return;
-            try
-            {
-                using var cmd = conn.CreateCommand();
-                // Intentamos agregar la columna. Si ya existe, el catch lo ignora silenciosamente.
-                cmd.CommandText = "ALTER TABLE CortesCaja ADD COLUMN FechaHoraCierre TEXT;";
-                cmd.ExecuteNonQuery();
-            }
-            catch { } // Ignoramos si la columna ya existe
-            finally
-            {
-                _esquemaValidado = true;
-            }
+
+            try { using var cmd = conn.CreateCommand(); cmd.CommandText = "ALTER TABLE CortesCaja ADD COLUMN FechaHoraCierre TEXT;"; cmd.ExecuteNonQuery(); } catch { }
+
+            // CREAR LA COLUMNA FALTANTE PARA EVITAR CRASHES
+            try { using var cmd = conn.CreateCommand(); cmd.CommandText = "ALTER TABLE MovimientosCaja ADD COLUMN CorteCajaId INTEGER DEFAULT 0;"; cmd.ExecuteNonQuery(); } catch { }
+
+            _esquemaValidado = true;
         }
 
         public static void RegistrarMovimientoEfectivo(string tipo, decimal monto, string concepto)
@@ -53,7 +47,8 @@ namespace Punto_de_Venta
                 {
                     updateCorteCmd.Transaction = tr;
                     if (tipo.Equals("Entrada", StringComparison.OrdinalIgnoreCase)) updateCorteCmd.CommandText = @"UPDATE CortesCaja SET EntradasEfectivo = EntradasEfectivo + @monto, TotalEsperado = TotalEsperado + @monto WHERE Id = @id;";
-                    else if (tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase)) updateCorteCmd.CommandText = @"UPDATE CortesCaja SET SalidasEfectivo = SalidasEfectivo + @monto, TotalEsperado = TotalEsperado - @monto WHERE Id = @id;";
+                    else if (tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase) || tipo.Equals("Gasto", StringComparison.OrdinalIgnoreCase)) updateCorteCmd.CommandText = @"UPDATE CortesCaja SET SalidasEfectivo = SalidasEfectivo + @monto, TotalEsperado = TotalEsperado - @monto WHERE Id = @id;";
+
                     updateCorteCmd.Parameters.AddWithValue("@monto", Convert.ToDouble(monto));
                     updateCorteCmd.Parameters.AddWithValue("@id", turnoActivo.Id);
                     updateCorteCmd.ExecuteNonQuery();
@@ -66,7 +61,7 @@ namespace Punto_de_Venta
         public static CorteCaja ObtenerTurnoActivo()
         {
             using var conn = DatabaseHelper.GetConnection();
-            ValidarEsquemaBD(conn); // Validamos antes de leer la base de datos
+            ValidarEsquemaBD(conn);
 
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"SELECT Id, FechaHora, FechaHoraCierre, Estado, FondoInicial, VentasEfectivo, EntradasEfectivo, SalidasEfectivo, TotalEsperado, TotalContado, Observaciones FROM CortesCaja WHERE Estado = 'Abierto' ORDER BY Id DESC LIMIT 1;";
@@ -77,20 +72,24 @@ namespace Punto_de_Venta
                 var id = reader.GetInt32(0);
                 var fechaStr = reader.GetString(1);
                 var fechaCierreStr = reader.IsDBNull(2) ? null : reader.GetString(2);
-                var estado = reader.GetString(3);
-                var fondo = Convert.ToDecimal(reader.GetDouble(4));
-                var ventas = Convert.ToDecimal(reader.GetDouble(5));
-                var entradas = Convert.ToDecimal(reader.GetDouble(6));
-                var salidas = Convert.ToDecimal(reader.GetDouble(7));
-                var esperado = Convert.ToDecimal(reader.GetDouble(8));
-                var contado = Convert.ToDecimal(reader.GetDouble(9));
-                var notas = reader.IsDBNull(10) ? string.Empty : reader.GetString(10);
-
                 DateTime.TryParse(fechaStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fechaApertura);
                 DateTime? fechaCierre = null;
                 if (!string.IsNullOrEmpty(fechaCierreStr) && DateTime.TryParse(fechaCierreStr, CultureInfo.InvariantCulture, DateTimeStyles.None, out var fCierre)) fechaCierre = fCierre;
 
-                return new CorteCaja { Id = id, FechaHora = fechaApertura, FechaHoraCierre = fechaCierre, Estado = estado, FondoInicial = fondo, VentasEfectivo = ventas, EntradasEfectivo = entradas, SalidasEfectivo = salidas, TotalEsperado = esperado, TotalContado = contado, Observaciones = notas };
+                return new CorteCaja
+                {
+                    Id = id,
+                    FechaHora = fechaApertura,
+                    FechaHoraCierre = fechaCierre,
+                    Estado = reader.GetString(3),
+                    FondoInicial = Convert.ToDecimal(reader.GetDouble(4)),
+                    VentasEfectivo = Convert.ToDecimal(reader.GetDouble(5)),
+                    EntradasEfectivo = Convert.ToDecimal(reader.GetDouble(6)),
+                    SalidasEfectivo = Convert.ToDecimal(reader.GetDouble(7)),
+                    TotalEsperado = Convert.ToDecimal(reader.GetDouble(8)),
+                    TotalContado = Convert.ToDecimal(reader.GetDouble(9)),
+                    Observaciones = reader.IsDBNull(10) ? string.Empty : reader.GetString(10)
+                };
             }
             return null;
         }
@@ -101,7 +100,7 @@ namespace Punto_de_Venta
             ValidarEsquemaBD(conn);
 
             using var cmdMovimientos = conn.CreateCommand();
-            cmdMovimientos.CommandText = @"SELECT COALESCE(SUM(CASE WHEN Tipo = 'Entrada' THEN Monto ELSE 0 END), 0) AS TotalEntradas, COALESCE(SUM(CASE WHEN Tipo = 'Salida' THEN Monto ELSE 0 END), 0) AS TotalSalidas FROM MovimientosCaja WHERE CorteCajaId = @idTurno;";
+            cmdMovimientos.CommandText = @"SELECT COALESCE(SUM(CASE WHEN Tipo = 'Entrada' THEN Monto ELSE 0 END), 0) AS TotalEntradas, COALESCE(SUM(CASE WHEN Tipo = 'Salida' OR Tipo = 'Gasto' THEN Monto ELSE 0 END), 0) AS TotalSalidas FROM MovimientosCaja WHERE CorteCajaId = @idTurno;";
             cmdMovimientos.Parameters.AddWithValue("@idTurno", turnoActivo.Id);
 
             decimal totalEntradas = 0, totalSalidas = 0;
@@ -133,14 +132,38 @@ namespace Punto_de_Venta
             using var conn = DatabaseHelper.GetConnection();
             ValidarEsquemaBD(conn);
 
-            using var cmd = conn.CreateCommand();
-            cmd.CommandText = @"INSERT INTO CortesCaja (FechaHora, Estado, FondoInicial, VentasEfectivo, EntradasEfectivo, SalidasEfectivo, TotalEsperado, TotalContado, Observaciones) VALUES (@fecha, 'Abierto', @fondo, 0, 0, 0, @fondo, 0, @obs); SELECT last_insert_rowid();";
-            cmd.Parameters.AddWithValue("@fecha", DateTime.Now.ToString("o", CultureInfo.InvariantCulture));
-            cmd.Parameters.AddWithValue("@fondo", Convert.ToDouble(fondoInicial));
-            cmd.Parameters.AddWithValue("@obs", concepto);
+            using var tr = conn.BeginTransaction();
+            try
+            {
+                // 1. Crear el turno en CortesCaja
+                using var cmd = conn.CreateCommand();
+                cmd.Transaction = tr;
+                cmd.CommandText = @"INSERT INTO CortesCaja (FechaHora, Estado, FondoInicial, VentasEfectivo, EntradasEfectivo, SalidasEfectivo, TotalEsperado, TotalContado, Observaciones) VALUES (@fecha, 'Abierto', @fondo, 0, 0, 0, @fondo, 0, @obs); SELECT last_insert_rowid();";
+                cmd.Parameters.AddWithValue("@fecha", DateTime.Now.ToString("o", CultureInfo.InvariantCulture));
+                cmd.Parameters.AddWithValue("@fondo", Convert.ToDouble(fondoInicial));
+                cmd.Parameters.AddWithValue("@obs", concepto);
 
-            long idGenerado = (long)cmd.ExecuteScalar();
-            return new CorteCaja { Id = (int)idGenerado, FechaHora = DateTime.Now, Estado = "Abierto", FondoInicial = fondoInicial, TotalEsperado = fondoInicial, Observaciones = concepto };
+                long idGenerado = (long)cmd.ExecuteScalar();
+
+                // 2. REGISTRAR EL FONDO INICIAL EN MOVIMIENTOS
+                using var cmdMov = conn.CreateCommand();
+                cmdMov.Transaction = tr;
+                cmdMov.CommandText = @"INSERT INTO MovimientosCaja (FechaHora, Tipo, Monto, Concepto, CorteCajaId) VALUES (@fecha, 'Fondo', @monto, @concepto, @corteId);";
+                cmdMov.Parameters.AddWithValue("@fecha", DateTime.Now.ToString("o", CultureInfo.InvariantCulture));
+                cmdMov.Parameters.AddWithValue("@monto", Convert.ToDouble(fondoInicial));
+                cmdMov.Parameters.AddWithValue("@concepto", concepto);
+                cmdMov.Parameters.AddWithValue("@corteId", idGenerado);
+                cmdMov.ExecuteNonQuery();
+
+                tr.Commit();
+
+                return new CorteCaja { Id = (int)idGenerado, FechaHora = DateTime.Now, Estado = "Abierto", FondoInicial = fondoInicial, TotalEsperado = fondoInicial, Observaciones = concepto };
+            }
+            catch
+            {
+                tr.Rollback();
+                throw;
+            }
         }
     }
 }

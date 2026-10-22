@@ -659,16 +659,31 @@
                                     <!-- Botones de Acción -->
                                     <Grid>
                                         <Grid.ColumnDefinitions>
+                                            <!-- Columna 0: Enlace Rápido -->
+                                            <ColumnDefinition Width="Auto" />
+                                            <!-- Columna 1: Separador -->
+                                            <ColumnDefinition Width="8" />
+                                            <!-- Columna 2: Añadir -->
                                             <ColumnDefinition Width="1.1*" />
+                                            <!-- Columna 3: Separador -->
                                             <ColumnDefinition Width="8" />
+                                            <!-- Columna 4: Borrar -->
                                             <ColumnDefinition Width="*" />
+                                            <!-- Columna 5: Separador -->
                                             <ColumnDefinition Width="8" />
+                                            <!-- Columna 6: Modificar -->
                                             <ColumnDefinition Width="*" />
                                         </Grid.ColumnDefinitions>
+
+                                        <Button Grid.Column="6" Content="Enlace R" Background="{DynamicResource ThemeAccent}" Foreground="White" Style="{StaticResource PillButtonStyle}" Click="BtnEnlaceRapido_Click" />
+
                                         <Button Grid.Column="0" Content="AÑADIR" Style="{StaticResource PrimaryAddButtonStyle}" Click="AddButton_Click" />
+
                                         <Button x:Name="DeleteButton" Grid.Column="2" Content="BORRAR" Style="{StaticResource DangerDeleteButtonStyle}" IsEnabled="False" Click="DeleteButton_Click" />
+
                                         <Button x:Name="ModifyButton" Grid.Column="4" Content="MODIF." Style="{StaticResource PillButtonStyle}" IsEnabled="False" Click="ModifyButton_Click" />
                                     </Grid>
+
                                 </StackPanel>
                             </Border>
                             <Button Content="Limpiar Selección" Style="{StaticResource PillButtonStyle}" Margin="0,12,0,0" Click="ClearSelectionButton_Click" />

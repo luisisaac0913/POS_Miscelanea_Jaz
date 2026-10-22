@@ -17,6 +17,7 @@ namespace Punto_de_Venta
         public string RutaRespaldos { get; set; } = string.Empty;
         public string NombreNegocio { get; set; } = "MISCELANEA JAZ";
         public string GiroNegocio { get; set; } = "Abarrotes y Novedades";
+        public bool SolicitarPinAdmin { get; set; } = false;
         public string DireccionNegocio { get; set; } = "Gomez Palacio, Durango";
         public string MensajePie { get; set; } = "GRACIAS POR SU COMPRA\nVuelva pronto";
         public string MensajeWhatsAppRecordatorio { get; set; } = "Hola {CLIENTE}, te recordamos de {NEGOCIO} que tienes un saldo pendiente de {SALDO} por concepto de: {CONCEPTO}. ¡Agradecemos tu pronto pago!";

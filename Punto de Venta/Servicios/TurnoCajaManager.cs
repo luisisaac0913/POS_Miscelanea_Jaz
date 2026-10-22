@@ -8,6 +8,26 @@ namespace Punto_de_Venta
 {
     public static class TurnoCajaManager
     {
+        // Añadimos un flag para validar solo la primera vez que se use en la sesión
+        private static bool _esquemaValidado = false;
+
+        private static void ValidarEsquemaBD(SqliteConnection conn)
+        {
+            if (_esquemaValidado) return;
+            try
+            {
+                using var cmd = conn.CreateCommand();
+                // Intentamos agregar la columna. Si ya existe, el catch lo ignora silenciosamente.
+                cmd.CommandText = "ALTER TABLE CortesCaja ADD COLUMN FechaHoraCierre TEXT;";
+                cmd.ExecuteNonQuery();
+            }
+            catch { } // Ignoramos si la columna ya existe
+            finally
+            {
+                _esquemaValidado = true;
+            }
+        }
+
         public static void RegistrarMovimientoEfectivo(string tipo, decimal monto, string concepto)
         {
             var turnoActivo = ObtenerTurnoActivo();
@@ -46,6 +66,8 @@ namespace Punto_de_Venta
         public static CorteCaja ObtenerTurnoActivo()
         {
             using var conn = DatabaseHelper.GetConnection();
+            ValidarEsquemaBD(conn); // Validamos antes de leer la base de datos
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"SELECT Id, FechaHora, FechaHoraCierre, Estado, FondoInicial, VentasEfectivo, EntradasEfectivo, SalidasEfectivo, TotalEsperado, TotalContado, Observaciones FROM CortesCaja WHERE Estado = 'Abierto' ORDER BY Id DESC LIMIT 1;";
 
@@ -76,6 +98,8 @@ namespace Punto_de_Venta
         public static void CerrarTurno(CorteCaja turnoActivo, decimal totalContadoFisico, string observacionesCierre, decimal ventasEfectivo)
         {
             using var conn = DatabaseHelper.GetConnection();
+            ValidarEsquemaBD(conn);
+
             using var cmdMovimientos = conn.CreateCommand();
             cmdMovimientos.CommandText = @"SELECT COALESCE(SUM(CASE WHEN Tipo = 'Entrada' THEN Monto ELSE 0 END), 0) AS TotalEntradas, COALESCE(SUM(CASE WHEN Tipo = 'Salida' THEN Monto ELSE 0 END), 0) AS TotalSalidas FROM MovimientosCaja WHERE CorteCajaId = @idTurno;";
             cmdMovimientos.Parameters.AddWithValue("@idTurno", turnoActivo.Id);
@@ -107,6 +131,8 @@ namespace Punto_de_Venta
             if (turnoActivo != null) return turnoActivo;
 
             using var conn = DatabaseHelper.GetConnection();
+            ValidarEsquemaBD(conn);
+
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"INSERT INTO CortesCaja (FechaHora, Estado, FondoInicial, VentasEfectivo, EntradasEfectivo, SalidasEfectivo, TotalEsperado, TotalContado, Observaciones) VALUES (@fecha, 'Abierto', @fondo, 0, 0, 0, @fondo, 0, @obs); SELECT last_insert_rowid();";
             cmd.Parameters.AddWithValue("@fecha", DateTime.Now.ToString("o", CultureInfo.InvariantCulture));

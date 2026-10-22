@@ -24,6 +24,7 @@ namespace Punto_de_Venta
     public partial class Cobro : Window
     {
         #region Campos Privados y Colecciones
+        private DispatcherTimer _typingTimer;
         private List<Producto> _catalog = new();
         private List<Promocion> _promocionesCargadas = new();
         private readonly DispatcherTimer _clockTimer;
@@ -44,15 +45,18 @@ namespace Punto_de_Venta
 
             Cart.CollectionChanged += Cart_CollectionChanged;
             ((TextBox)FindName("SearchBox")).TextChanged += SearchBox_TextChanged;
-
             RefreshSummary();
-
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ((TextBlock)FindName("ClockText")).Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
             Closed += (_, _) => _clockTimer.Stop();
             ActualizarVisibilidadEmptyState();
-
+            _typingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+            _typingTimer.Tick += (s, args) =>
+            {
+                _typingTimer.Stop();
+                RefreshSuggestions();
+            };
             this.StateChanged += (s, e) =>
             {
                 if (this.WindowState == WindowState.Minimized)
@@ -60,17 +64,14 @@ namespace Punto_de_Venta
                     SuggestionsPopup.IsOpen = false;
                 }
             };
-
             this.Deactivated += (s, e) =>
             {
                 SuggestionsPopup.IsOpen = false;
             };
-
             this.LocationChanged += (s, e) =>
             {
                 SuggestionsPopup.IsOpen = false;
             };
-
             var searchBox = (TextBox)FindName("SearchBox");
             if (searchBox != null)
             {
@@ -403,7 +404,6 @@ namespace Punto_de_Venta
                 if (FindName("SuggestionsPopup") is Popup popup) popup.IsOpen = false;
                 return;
             }
-
             var searchBox = (TextBox)FindName("SearchBox");
             ((TextBlock)FindName("SearchPlaceholder")).Visibility = string.IsNullOrEmpty(searchBox.Text) ? Visibility.Visible : Visibility.Collapsed;
 
@@ -411,7 +411,8 @@ namespace Punto_de_Venta
             {
                 ((TextBlock)FindName("SearchMessage")).Text = string.Empty;
             }
-            RefreshSuggestions();
+            _typingTimer.Stop();
+            _typingTimer.Start();
         }
 
         private void RefreshSuggestions()

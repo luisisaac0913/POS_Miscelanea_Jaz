@@ -644,6 +644,8 @@
                         <Grid>
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="12" />
+                                <RowDefinition Height="Auto" />
                                 <RowDefinition Height="14" />
                                 <RowDefinition Height="*" />
                                 <RowDefinition Height="14" />
@@ -655,43 +657,95 @@
                                 <TextBlock x:Name="HistorySummaryText" Text="Original: $0.00 | Total Abonado: $0.00 | Pendiente: $0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                             </StackPanel>
 
-                            <Border Grid.Row="2" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="14" Padding="8">
-                                <ScrollViewer VerticalScrollBarVisibility="Auto">
-                                    <StackPanel>
-                                        <TextBlock x:Name="NoAbonosMessage" Text="Este cliente aun no registra abonos." FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" HorizontalAlignment="Center" Margin="0,20" Visibility="Collapsed" />
+                            <!-- Botones Superiores: Deudas / Abonos -->
+                            <Grid Grid.Row="2">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Button x:Name="TabDeudasBtn" Grid.Column="0" Content="Deudas" Height="38" Background="{DynamicResource ThemeAccent}" Foreground="White" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Cursor="Hand" Click="TabDeudas_Click">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="18">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                                <Button x:Name="TabAbonosBtn" Grid.Column="2" Content="Abonos" Height="38" Background="{DynamicResource ThemeSurfaceBackground}" Foreground="{DynamicResource ThemeTextForeground}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Cursor="Hand" Click="TabAbonos_Click">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="18">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
 
-                                        <ItemsControl x:Name="AbonosListControl">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="10" Padding="12,10" Margin="0,0,0,6">
-                                                        <Grid>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-                                                            <StackPanel VerticalAlignment="Center">
-                                                                <TextBlock Text="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy hh:mm tt}}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
-                                                                <TextBlock Text="Abono a cuenta" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,2,0,0" />
-                                                            </StackPanel>
-                                                            <TextBlock Grid.Column="1" Text="{Binding Monto, StringFormat={}{0:C2}}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource SystemGreen}" VerticalAlignment="Center" />
-                                                        </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </ScrollViewer>
+                            <Border Grid.Row="4" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="14" Padding="10">
+                                <Grid>
+                                    <!-- Vista 1: Deudas (Por defecto) -->
+                                    <ScrollViewer x:Name="PanelDeudasView" VerticalScrollBarVisibility="Auto" Visibility="Visible">
+                                        <StackPanel x:Name="DeudasContainerPanel" />
+                                    </ScrollViewer>
+
+                                    <!-- Vista 2: Abonos -->
+                                    <ScrollViewer x:Name="PanelAbonosView" VerticalScrollBarVisibility="Auto" Visibility="Collapsed">
+                                        <StackPanel>
+                                            <TextBlock x:Name="NoAbonosMessage" Text="Este cliente aun no registra abonos." FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" HorizontalAlignment="Center" Margin="0,20" Visibility="Collapsed" />
+
+                                            <ItemsControl x:Name="AbonosListControl">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="10" Padding="12,10" Margin="0,0,0,6">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <StackPanel VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Fecha, StringFormat={}{0:dd/MM/yyyy hh:mm tt}}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                                                    <TextBlock Text="Abono a cuenta" FontSize="11" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,2,0,0" />
+                                                                </StackPanel>
+                                                                <TextBlock Grid.Column="1" Text="{Binding Monto, StringFormat={}{0:C2}}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="16" FontWeight="Bold" Foreground="{DynamicResource SystemGreen}" VerticalAlignment="Center" />
+                                                            </Grid>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </ScrollViewer>
+                                </Grid>
                             </Border>
 
-                            <Button Grid.Row="4" Content="Cerrar (Esc)" Height="42" Background="{DynamicResource ThemeInputBackground}" Foreground="{DynamicResource ThemeTextForeground}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Cursor="Hand" Click="CloseHistory_Click">
-                                <Button.Template>
-                                    <ControlTemplate TargetType="Button">
-                                        <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12">
-                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                        </Border>
-                                    </ControlTemplate>
-                                </Button.Template>
-                            </Button>
+                            <!-- Pie del Modal: Monto Total y Botón Cerrar -->
+                            <Grid Grid.Row="6">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="12" />
+                                    <ColumnDefinition Width="140" />
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="Monto:" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
+
+                                <Border Grid.Column="2" Height="42" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="21" Padding="16,0">
+                                    <TextBlock x:Name="HistoryMontoTotalText" Text="$0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+
+                                <Button Grid.Column="4" Content="Cerrar (Esc)" Height="42" Background="{DynamicResource ThemeInputBackground}" Foreground="{DynamicResource ThemeTextForeground}" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Cursor="Hand" Click="CloseHistory_Click">
+                                    <Button.Template>
+                                        <ControlTemplate TargetType="Button">
+                                            <Border Background="{TemplateBinding Background}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="21">
+                                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                        </ControlTemplate>
+                                    </Button.Template>
+                                </Button>
+                            </Grid>
                         </Grid>
                     </Border>
                 </Grid>

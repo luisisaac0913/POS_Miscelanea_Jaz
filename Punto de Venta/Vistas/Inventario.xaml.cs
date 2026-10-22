@@ -18,6 +18,7 @@ namespace Punto_de_Venta
 {
     public partial class Inventario : Window
     {
+        #region Campos Privados y Colecciones
         private readonly DispatcherTimer _clockTimer;
         private readonly DispatcherTimer _searchDebounceTimer;
         private Producto? _selectedProduct;
@@ -27,7 +28,9 @@ namespace Punto_de_Venta
 
         public ObservableCollection<Producto> Products { get; } = [];
         public ICollectionView ProductsView { get; }
+        #endregion
 
+        #region Controles de Ventana
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -43,7 +46,9 @@ namespace Punto_de_Venta
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
         private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+        #endregion
 
+        #region Constructor e Inicialización
         public Inventario()
         {
             InitializeComponent();
@@ -87,6 +92,78 @@ namespace Punto_de_Venta
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
             FocusCodeBox();
+        }
+        #endregion
+
+        #region Eventos Principales y Atajos de Teclado
+        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            // Cerrar Modal de ReStock Rápido
+            if (QuickRestockOverlay.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    CloseQuickRestock();
+                    e.Handled = true;
+                }
+                return;
+            }
+
+            // Atajo F9: Imprimir Etiqueta
+            if (e.Key == Key.F9)
+            {
+                ImprimirEtiquetaSeleccionada();
+                e.Handled = true;
+                return;
+            }
+            // Atajo Modificar: Shift + F
+            if (e.Key == Key.F && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+            {
+                ModifyButton_Click(null, null);
+                e.Handled = true;
+                return;
+            }
+            // Atajo Enlace Rápido: Ctrl + E
+            if (e.Key == Key.E && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                BtnEnlaceRapido_Click(null, null);
+                e.Handled = true;
+                return;
+            }
+            if (e.Key == Key.Escape)
+            {
+                Close();
+                e.Handled = true;
+                return;
+            }
+            // Atajo Buscador: Ctrl + F
+            if (e.Key == Key.F && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
+            {
+                FocusSearch();
+                e.Handled = true;
+                return;
+            }
+        }
+        #endregion
+
+        #region Módulo Enlace Rápido e Impresión de Etiquetas
+        private void BtnEnlaceRapido_Click(object sender, RoutedEventArgs e)
+        {
+            var modal = new Vistas.EnlaceRapidoModal();
+            modal.Owner = this;
+            modal.ShowDialog();
+
+            // Recargar datos desde la base de datos para reflejar los nuevos códigos asignados
+            try
+            {
+                Products.Clear();
+                foreach (var product in ProductoDB.Load())
+                {
+                    Products.Add(product);
+                }
+                ProductsView.Refresh();
+            }
+            catch { }
         }
 
         private void ImprimirEtiquetaSeleccionada()
@@ -141,55 +218,14 @@ namespace Punto_de_Venta
                 ToastNotification.Show($"Error al generar etiqueta: {ex.Message}", ToastType.Error);
             }
         }
+        #endregion
 
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
-        {
-            // Cerrar Modal de ReStock Rápido
-            if (QuickRestockOverlay.Visibility == Visibility.Visible)
-            {
-                if (e.Key == Key.Escape)
-                {
-                    CloseQuickRestock();
-                    e.Handled = true;
-                }
-                return;
-            }
-
-            // Atajo F9: Imprimir Etiqueta
-            if (e.Key == Key.F9)
-            {
-                ImprimirEtiquetaSeleccionada();
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.Escape)
-            {
-                Close();
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.F && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
-            {
-                FocusSearch();
-                e.Handled = true;
-                return;
-            }
-        }
-
+        #region Búsqueda y Filtros
         private void FocusSearch()
         {
             SearchBox.Focus();
             Keyboard.Focus(SearchBox);
             SearchBox.SelectAll();
-        }
-
-        private void FocusCodeBox()
-        {
-            ProductCodeBox.Focus();
-            Keyboard.Focus(ProductCodeBox);
-            ProductCodeBox.SelectAll();
         }
 
         private void FilterStock_Click(object sender, RoutedEventArgs e)
@@ -231,37 +267,14 @@ namespace Punto_de_Venta
             _searchDebounceTimer.Stop();
             _searchDebounceTimer.Start();
         }
+        #endregion
 
-        private void QuickRestock_Click(object sender, RoutedEventArgs e)
+        #region Interacción con Formulario y DataGrid
+        private void FocusCodeBox()
         {
-            if (_selectedProduct is null || sender is not Button btn || btn.Tag is not string amountStr)
-            {
-                ToastNotification.Show("Selecciona un producto para reabastecer", ToastType.Warning);
-                return;
-            }
-
-            if (!int.TryParse(amountStr, out var addAmount)) return;
-
-            int.TryParse(StockBox.Text.Trim(), out var currentStock);
-            var newStock = currentStock + addAmount;
-
-            StockBox.Text = newStock.ToString();
-            _selectedProduct.Stock = newStock;
-
-            try
-            {
-                ProductoDB.Save(Products);
-                ProductsView.Refresh();
-                ToastNotification.Show($"+{addAmount} pzas añadidas ({_selectedProduct.Nombre}). Stock: {newStock}", ToastType.Success);
-            }
-            catch (Exception ex)
-            {
-                ToastNotification.Show($"Error al guardar reabastecimiento: {ex.Message}", ToastType.Error);
-            }
-        }
-
-        private void CostOrMargin_TextChanged(object sender, TextChangedEventArgs e)
-        {
+            ProductCodeBox.Focus();
+            Keyboard.Focus(ProductCodeBox);
+            ProductCodeBox.SelectAll();
         }
 
         private void ProductGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -292,7 +305,6 @@ namespace Punto_de_Venta
                     AskQuantityCheckBox.IsChecked = _selectedProduct.PedirCantidadAlCobrar;
                 }
 
-                // ESTA ES LA LÍNEA QUE FALTABA PARA QUE LA INTERFAZ LO MUESTRE GUARDADO
                 if (ScaleWeighCheckBox != null)
                 {
                     ScaleWeighCheckBox.IsChecked = _selectedProduct.SeVendePorPeso;
@@ -309,11 +321,14 @@ namespace Punto_de_Venta
             if (e.Key != Key.Enter) return;
 
             var code = ProductCodeBox.Text.Trim();
-            if (string.IsNullOrWhiteSpace(code)) return;
-
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                ProductNameBox.Focus();
+                e.Handled = true;
+                return;
+            }
             var existing = Products.FirstOrDefault(p =>
                 string.Equals(p.Codigo, code, StringComparison.OrdinalIgnoreCase));
-
             if (existing is not null)
             {
                 SelectProduct(existing);
@@ -322,11 +337,9 @@ namespace Punto_de_Venta
             }
             else
             {
-                ClearSelectionAndForm();
-                ProductCodeBox.Text = code;
                 ProductNameBox.Focus();
+                ProductNameBox.SelectAll();
             }
-
             e.Handled = true;
         }
 
@@ -386,6 +399,12 @@ namespace Punto_de_Venta
             e.Handled = true;
         }
 
+        private void CostOrMargin_TextChanged(object sender, TextChangedEventArgs e)
+        {
+        }
+        #endregion
+
+        #region Operaciones CRUD (Crear, Actualizar, Borrar)
         private void AddButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CanWrite() || !TryReadForm(out var code, out var name, out var cost, out var margin, out var price, out var category, out var stock))
@@ -475,15 +494,6 @@ namespace Punto_de_Venta
             ToastNotification.Show($"Producto '{productToDelete.Nombre}' eliminado", ToastType.Success);
         }
 
-        private bool HasDuplicateCode(string code, int? excludedId = null)
-        {
-            if (string.IsNullOrWhiteSpace(code)) return false;
-
-            return Products.Any(product =>
-                product.Id != excludedId &&
-                string.Equals(product.Codigo, code, StringComparison.OrdinalIgnoreCase));
-        }
-
         private void ModifyButton_Click(object sender, RoutedEventArgs e)
         {
             if (!CanWrite() || _selectedProduct is null || !TryReadForm(out var code, out var name, out var cost, out var margin, out var price, out var category, out var stock))
@@ -543,7 +553,9 @@ namespace Punto_de_Venta
             ClearSelectionAndForm();
             FocusCodeBox();
         }
+        #endregion
 
+        #region Métodos Auxiliares
         private void ClearSelectionAndForm()
         {
             ProductGrid.SelectedItem = null;
@@ -620,6 +632,15 @@ namespace Punto_de_Venta
 
         private bool HasDuplicateName(string name, int? excludedId = null) =>
             Products.Any(product => product.Id != excludedId && string.Equals(product.Nombre, name, StringComparison.OrdinalIgnoreCase));
+
+        private bool HasDuplicateCode(string code, int? excludedId = null)
+        {
+            if (string.IsNullOrWhiteSpace(code)) return false;
+
+            return Products.Any(product =>
+                product.Id != excludedId &&
+                string.Equals(product.Codigo, code, StringComparison.OrdinalIgnoreCase));
+        }
 
         private bool CanWrite()
         {
@@ -713,6 +734,7 @@ namespace Punto_de_Venta
             ProductGrid.SelectedItem = product;
             ProductGrid.ScrollIntoView(product);
         }
+        #endregion
 
         #region Módulo Modo ReStock Rápido (Modal Instantáneo)
         private void OpenQuickRestockModal_Click(object sender, RoutedEventArgs e)
@@ -734,7 +756,33 @@ namespace Punto_de_Venta
             QuickRestockOverlay.Visibility = Visibility.Collapsed;
             FocusCodeBox();
         }
+        private void QuickRestock_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedProduct is null || sender is not Button btn || btn.Tag is not string amountStr)
+            {
+                ToastNotification.Show("Selecciona un producto para reabastecer", ToastType.Warning);
+                return;
+            }
 
+            if (!int.TryParse(amountStr, out var addAmount)) return;
+
+            int.TryParse(StockBox.Text.Trim(), out var currentStock);
+            var newStock = currentStock + addAmount;
+
+            StockBox.Text = newStock.ToString();
+            _selectedProduct.Stock = newStock;
+
+            try
+            {
+                ProductoDB.Save(Products);
+                ProductsView.Refresh();
+                ToastNotification.Show($"+{addAmount} pzas añadidas ({_selectedProduct.Nombre}). Stock: {newStock}", ToastType.Success);
+            }
+            catch (Exception ex)
+            {
+                ToastNotification.Show($"Error al guardar reabastecimiento: {ex.Message}", ToastType.Error);
+            }
+        }
         private void QrScanCodeBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key != Key.Enter) return;

@@ -18,14 +18,16 @@ namespace Punto_de_Venta.Datos
             Mode = SqliteOpenMode.ReadWriteCreate,
             Cache = SqliteCacheMode.Shared
         }.ToString();
+
         public static void ActualizarEsquemaVentas()
         {
             using var conn = GetConnection();
             string[] queries = {
-        "ALTER TABLE Ventas ADD COLUMN PagoEfectivo REAL DEFAULT 0;",
-        "ALTER TABLE Ventas ADD COLUMN PagoTarjeta REAL DEFAULT 0;",
-        "ALTER TABLE Ventas ADD COLUMN PagoTransferencia REAL DEFAULT 0;"
-    };
+                "ALTER TABLE Ventas ADD COLUMN PagoEfectivo REAL DEFAULT 0;",
+                "ALTER TABLE Ventas ADD COLUMN PagoTarjeta REAL DEFAULT 0;",
+                "ALTER TABLE Ventas ADD COLUMN PagoTransferencia REAL DEFAULT 0;",
+                "ALTER TABLE Ventas ADD COLUMN Estado TEXT NOT NULL DEFAULT 'Completada';"
+            };
 
             foreach (var query in queries)
             {
@@ -41,6 +43,7 @@ namespace Punto_de_Venta.Datos
                 }
             }
         }
+
         public static SqliteConnection GetConnection()
         {
             var conn = new SqliteConnection(ConnectionString);
@@ -69,7 +72,7 @@ namespace Punto_de_Venta.Datos
 
             using var cmd = conn.CreateCommand();
             cmd.CommandText = @"
-               -- 1. PRODUCTOS (Actualizado)
+                -- 1. PRODUCTOS (Actualizado)
                 CREATE TABLE IF NOT EXISTS Productos (
                     Id INTEGER PRIMARY KEY,
                     Codigo TEXT NOT NULL,
@@ -80,20 +83,23 @@ namespace Punto_de_Venta.Datos
                     Precio REAL NOT NULL,
                     Stock INTEGER NOT NULL,
                     PedirCantidadAlCobrar INTEGER NOT NULL DEFAULT 0,
-                    SeVendePorPeso INTEGER NOT NULL DEFAULT 0 -- NUEVA COLUMNA
+                    SeVendePorPeso INTEGER NOT NULL DEFAULT 0
                 );
                 CREATE INDEX IF NOT EXISTS IX_Productos_Codigo ON Productos(Codigo);
                 CREATE INDEX IF NOT EXISTS IX_Productos_Nombre ON Productos(Nombre);
 
-                -- 2. VENTAS
+                -- 2. VENTAS (Con Estado garantizado)
                 CREATE TABLE IF NOT EXISTS Ventas (
                     Id INTEGER PRIMARY KEY,
                     FechaHora TEXT NOT NULL,
                     Total REAL NOT NULL,
-                    PagoCon REAL NOT NULL,
-                    Cambio REAL NOT NULL,
-                    Estado TEXT NOT NULL,
-                    MetodoPago TEXT NOT NULL
+                    PagoCon REAL NOT NULL DEFAULT 0,
+                    Cambio REAL NOT NULL DEFAULT 0,
+                    Estado TEXT NOT NULL DEFAULT 'Completada',
+                    MetodoPago TEXT NOT NULL,
+                    PagoEfectivo REAL DEFAULT 0,
+                    PagoTarjeta REAL DEFAULT 0,
+                    PagoTransferencia REAL DEFAULT 0
                 );
                 CREATE INDEX IF NOT EXISTS IX_Ventas_FechaHora ON Ventas(FechaHora);
 
@@ -111,14 +117,15 @@ namespace Punto_de_Venta.Datos
                     FOREIGN KEY (VentaId) REFERENCES Ventas(Id) ON DELETE CASCADE
                 );
                 CREATE INDEX IF NOT EXISTS IX_VentasDetalle_VentaId ON VentasDetalle(VentaId);
--- 4. MOVIMIENTOS DE CAJA
+
+                -- 4. MOVIMIENTOS DE CAJA
                 CREATE TABLE IF NOT EXISTS MovimientosCaja (
                     Id INTEGER PRIMARY KEY,
                     FechaHora TEXT NOT NULL,
-                    Tipo TEXT NOT NULL, -- 'Entrada' o 'Salida'
+                    Tipo TEXT NOT NULL, -- 'Entrada', 'Salida' o 'Fondo'
                     Monto REAL NOT NULL,
                     Concepto TEXT NOT NULL,
-                    CorteCajaId INTEGER NULL, -- Relación con el turno
+                    CorteCajaId INTEGER NULL,
                     FOREIGN KEY (CorteCajaId) REFERENCES CortesCaja(Id) ON DELETE SET NULL
                 );
                 CREATE INDEX IF NOT EXISTS IX_Movimientos_FechaHora ON MovimientosCaja(FechaHora);
@@ -141,35 +148,41 @@ namespace Punto_de_Venta.Datos
                     Monto REAL NOT NULL,
                     FOREIGN KEY (DeudorId) REFERENCES Deudores(Id) ON DELETE CASCADE
                 );
-CREATE TABLE IF NOT EXISTS CortesCaja (
-    Id INTEGER PRIMARY KEY,
-    FechaHora TEXT NOT NULL,          -- FechaHoraApertura
-    FechaHoraCierre TEXT NULL,        -- Nueva columna
-    Estado TEXT NOT NULL DEFAULT 'Cerrado', -- Nueva columna ('Abierto' o 'Cerrado')
-    FondoInicial REAL NOT NULL,
-    VentasEfectivo REAL NOT NULL DEFAULT 0,
-    EntradasEfectivo REAL NOT NULL DEFAULT 0,
-    SalidasEfectivo REAL NOT NULL DEFAULT 0,
-    TotalEsperado REAL NOT NULL DEFAULT 0,
-    TotalContado REAL NOT NULL DEFAULT 0,
-    Observaciones TEXT
-);
-CREATE TABLE IF NOT EXISTS Promociones (
-    Id INTEGER PRIMARY KEY AUTOINCREMENT,
-    Nombre TEXT NOT NULL,
-    Tipo TEXT NOT NULL,
-    Activa INTEGER NOT NULL DEFAULT 1,
-    FechaInicio TEXT NULL,
-    FechaFin TEXT NULL,
-    ProductoIdPrincipal INTEGER NOT NULL,
-    CantidadMinima INTEGER DEFAULT 1,
-    PrecioEspecial REAL DEFAULT 0.0,
-    ProductoIdSecundario INTEGER NULL,
-    PrecioComboTotal REAL DEFAULT 0.0,
-    PorcentajeDescuento REAL DEFAULT 0.0
-);
+
+                CREATE TABLE IF NOT EXISTS CortesCaja (
+                    Id INTEGER PRIMARY KEY,
+                    FechaHora TEXT NOT NULL,
+                    FechaHoraCierre TEXT NULL,
+                    Estado TEXT NOT NULL DEFAULT 'Cerrado',
+                    FondoInicial REAL NOT NULL,
+                    VentasEfectivo REAL NOT NULL DEFAULT 0,
+                    EntradasEfectivo REAL NOT NULL DEFAULT 0,
+                    SalidasEfectivo REAL NOT NULL DEFAULT 0,
+                    TotalEsperado REAL NOT NULL DEFAULT 0,
+                    TotalContado REAL NOT NULL DEFAULT 0,
+                    Observaciones TEXT
+                );
+
+                CREATE TABLE IF NOT EXISTS Promociones (
+                    Id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    Nombre TEXT NOT NULL,
+                    Tipo TEXT NOT NULL,
+                    Activa INTEGER NOT NULL DEFAULT 1,
+                    FechaInicio TEXT NULL,
+                    FechaFin TEXT NULL,
+                    ProductoIdPrincipal INTEGER NOT NULL,
+                    CantidadMinima INTEGER DEFAULT 1,
+                    PrecioEspecial REAL DEFAULT 0.0,
+                    ProductoIdSecundario INTEGER NULL,
+                    PrecioComboTotal REAL DEFAULT 0.0,
+                    PorcentajeDescuento REAL DEFAULT 0.0
+                );
             ";
             cmd.ExecuteNonQuery();
+
+            // EJECUTAR PARCHES DE AUDITORÍA Y RETROCOMPATIBILIDAD AL VUELO
+            ActualizarEsquemaVentas();
+
             using (var alterCmd2 = conn.CreateCommand())
             {
                 alterCmd2.CommandText = "PRAGMA table_info(MovimientosCaja);";
@@ -193,6 +206,7 @@ CREATE TABLE IF NOT EXISTS Promociones (
                     updateCmd2.ExecuteNonQuery();
                 }
             }
+
             using (var alterCmd = conn.CreateCommand())
             {
                 alterCmd.CommandText = "PRAGMA table_info(Productos);";
@@ -217,9 +231,7 @@ CREATE TABLE IF NOT EXISTS Promociones (
                 }
             }
         }
-        /// <summary>
-        /// Migra ventas y movimientos de caja desde los .txt existentes a SQLite si las tablas están vacías.
-        /// </summary>
+
         public static void MigrarVentasYMovimientosSiEsNecesario()
         {
             using var conn = GetConnection();
@@ -320,9 +332,7 @@ CREATE TABLE IF NOT EXISTS Promociones (
                 }
             }
         }
-        /// <summary>
-        /// Migra cortes de caja y deudores/abonos desde los archivos .txt a SQLite si es necesario.
-        /// </summary>
+
         public static void MigrarCortesYPrestamosSiEsNecesario()
         {
             using var conn = GetConnection();
@@ -380,6 +390,7 @@ CREATE TABLE IF NOT EXISTS Promociones (
                     }
                 }
             }
+
             using (var checkDeudoresCmd = conn.CreateCommand())
             {
                 checkDeudoresCmd.CommandText = "SELECT COUNT(1) FROM Deudores;";
@@ -396,8 +407,8 @@ CREATE TABLE IF NOT EXISTS Promociones (
                         using var insertDeudor = conn.CreateCommand();
                         insertDeudor.Transaction = tr;
                         insertDeudor.CommandText = @"
-                INSERT INTO Deudores (Id, Nombre, Telefono, Concepto, MontoOriginal, TotalAbonado)
-                VALUES (@id, @nom, @tel, @con, @monto, @abonado);";
+                            INSERT INTO Deudores (Id, Nombre, Telefono, Concepto, MontoOriginal, TotalAbonado)
+                            VALUES (@id, @nom, @tel, @con, @monto, @abonado);";
 
                         var pId = insertDeudor.Parameters.Add("@id", Microsoft.Data.Sqlite.SqliteType.Integer);
                         var pNom = insertDeudor.Parameters.Add("@nom", Microsoft.Data.Sqlite.SqliteType.Text);
@@ -420,19 +431,16 @@ CREATE TABLE IF NOT EXISTS Promociones (
                             decimal montoOriginal = 0m;
                             decimal totalAbonado = 0m;
 
-                            // parts[3] = Monto total prestado (ej. 18.00)
                             if (parts.Length > 3)
                             {
                                 decimal.TryParse(parts[3].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out montoOriginal);
                             }
 
-                            // parts[4] = Total abonado histórico (ej. 2.00)
                             if (parts.Length > 4)
                             {
                                 decimal.TryParse(parts[4].Trim(), System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out totalAbonado);
                             }
 
-                            // parts[6] = Teléfono (si existía al final)
                             if (parts.Length > 6 && !string.IsNullOrWhiteSpace(parts[6]))
                             {
                                 telefono = parts[6].Trim();
@@ -457,24 +465,20 @@ CREATE TABLE IF NOT EXISTS Promociones (
                 }
             }
         }
-        /// <summary>
-        /// Traspasa los datos existentes de los archivos .txt a SQLite una sola vez.
-        /// </summary>
+
         public static void MigrarDesdeArchivosPlanosSiEsNecesario()
         {
             using var conn = GetConnection();
 
-            // 1. Verificar si ya hay datos en la tabla Productos
             using var checkCmd = conn.CreateCommand();
             checkCmd.CommandText = "SELECT COUNT(1) FROM Productos;";
             long count = (long)(checkCmd.ExecuteScalar() ?? 0L);
 
             if (count > 0)
             {
-                return; // Ya fue migrado previamente
+                return;
             }
 
-            // 2. Ruta de productos.txt en AppData
             string txtProductos = Path.Combine(DbFolder, "productos.txt");
             if (!File.Exists(txtProductos))
             {
@@ -494,7 +498,7 @@ CREATE TABLE IF NOT EXISTS Promociones (
                     if (!int.TryParse(parts[0], out var id)) continue;
                     var codigo = parts[1].Trim();
                     var nombre = parts[2].Trim();
-                    var categoria = parts[3].Trim();
+                    var categoria = parts.Length > 3 ? parts[3].Trim() : "General";
 
                     decimal.TryParse(parts[4], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var costo);
                     decimal.TryParse(parts[5], System.Globalization.NumberStyles.Any, System.Globalization.CultureInfo.InvariantCulture, out var ganancia);

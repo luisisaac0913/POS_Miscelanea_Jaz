@@ -67,13 +67,15 @@ namespace Punto_de_Venta
             AskBeforePrintCheckBox.IsChecked = _config.PreguntarAntesDeImprimir;
             AutoPrintCheckBox.IsChecked = _config.ImprimirTicketAutomatico;
 
-            // Nueva opción: No guardar ni imprimir
             if (NoPrintOrSaveCheckBox != null)
             {
                 NoPrintOrSaveCheckBox.IsChecked = !_config.PreguntarAntesDeImprimir && !_config.ImprimirTicketAutomatico;
             }
 
             BackupFolderBox.Text = _config.RutaRespaldos ?? string.Empty;
+
+            // Seguridad de PIN
+            RequirePinCheckBox.IsChecked = _config.SolicitarPinAdmin;
 
             // Báscula digital
             EnableScaleCheckBox.IsChecked = _config.BasculaHabilitada;
@@ -362,6 +364,9 @@ namespace Punto_de_Venta
 
                 var modoOscuroSeleccionado = DarkModeCheckBox.IsChecked == true;
                 _config.ModoOscuro = modoOscuroSeleccionado;
+
+                // Guardar la opción del PIN
+                _config.SolicitarPinAdmin = RequirePinCheckBox.IsChecked == true;
 
                 _config.BasculaHabilitada = EnableScaleCheckBox.IsChecked == true;
                 _config.BasculaPuerto = ScalePortComboBox.SelectedItem?.ToString() ?? "COM1";

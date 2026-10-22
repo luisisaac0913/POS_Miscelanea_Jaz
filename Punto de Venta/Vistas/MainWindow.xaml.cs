@@ -683,16 +683,6 @@ namespace Punto_de_Venta
             return report.ToString();
         }
 
-        private bool SolicitarAutorizacion()
-        {
-            var modal = new AutorizacionModal
-            {
-                Owner = this
-            };
-            modal.ShowDialog();
-            return modal.Autorizado;
-        }
-
         private void MostrarErrorExportacion(Exception exception)
         {
             CerrarExportar();
@@ -707,5 +697,22 @@ namespace Punto_de_Venta
             }
         }
         #endregion
+        private bool SolicitarAutorizacion()
+        {
+            // 1. Verificamos si el administrador decidió desactivar el PIN
+            var config = AppConfig.Load();
+            if (!config.SolicitarPinAdmin)
+            {
+                return true; // Acceso libre e inmediato sin abrir la ventana
+            }
+
+            // 2. Si el PIN sigue activado, mostramos el modal como siempre
+            var modal = new AutorizacionModal
+            {
+                Owner = this
+            };
+            modal.ShowDialog();
+            return modal.Autorizado;
+        }
     }
 }

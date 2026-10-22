@@ -12,6 +12,7 @@ using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
 using System.Windows.Markup;
+using System.Windows.Media;
 using System.Windows.Threading;
 
 namespace Punto_de_Venta
@@ -22,6 +23,7 @@ namespace Punto_de_Venta
         private Deudor? _selectedDebtor;
         private bool _loadFailed;
         private bool _successStatusVisible;
+        private Dictionary<string, decimal> _preciosCatalogo = new(StringComparer.OrdinalIgnoreCase);
 
         public ObservableCollection<Deudor> Debtors { get; } = [];
         public ICollectionView DebtorsView { get; }
@@ -46,6 +48,18 @@ namespace Punto_de_Venta
                 _loadFailed = true;
                 ToastNotification.Show($"Error al cargar la libreta: {exception.Message}", ToastType.Error);
             }
+
+            try
+            {
+                foreach (var prod in ProductoDB.Load())
+                {
+                    if (!string.IsNullOrWhiteSpace(prod.Nombre))
+                    {
+                        _preciosCatalogo[prod.Nombre.Trim()] = prod.Precio;
+                    }
+                }
+            }
+            catch { }
 
             UpdateTotalLent();
             SetNextId();
@@ -514,11 +528,181 @@ namespace Punto_de_Venta
             HistoryClientName.Text = $"Historial: {_selectedDebtor.Nombre}";
             HistorySummaryText.Text = $"Original: {_selectedDebtor.MontoOriginal.ToString("C2", culture)} | Total Abonado: {_selectedDebtor.TotalAbonado.ToString("C2", culture)} | Pendiente: {_selectedDebtor.SaldoRestante.ToString("C2", culture)}";
 
+            HistoryMontoTotalText.Text = _selectedDebtor.SaldoRestante.ToString("C2", culture);
+
             AbonosListControl.ItemsSource = _selectedDebtor.Abonos;
             NoAbonosMessage.Visibility = _selectedDebtor.Abonos.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
 
+            ConstruirVistaDeudas(_selectedDebtor);
+            ActivarTabDeudas();
+
             HistorialOverlay.Visibility = Visibility.Visible;
             HistorialOverlay.Focus();
+        }
+
+        private void ConstruirVistaDeudas(Deudor deudor)
+        {
+            DeudasContainerPanel.Children.Clear();
+            var culture = CultureInfo.GetCultureInfo("es-MX");
+
+            var bloques = (deudor.Concepto ?? string.Empty).Split(new[] { '|', ';' }, StringSplitOptions.RemoveEmptyEntries);
+
+            if (bloques.Length == 0)
+            {
+                DeudasContainerPanel.Children.Add(new TextBlock
+                {
+                    Text = "Sin desglose de productos registrado.",
+                    FontSize = 13,
+                    Foreground = (Brush)FindResource("ThemeMutedForeground"),
+                    HorizontalAlignment = HorizontalAlignment.Center,
+                    Margin = new Thickness(0, 20, 0, 20)
+                });
+                return;
+            }
+
+            foreach (var bloque in bloques)
+            {
+                var texto = bloque.Trim();
+                if (string.IsNullOrEmpty(texto)) continue;
+
+                string fechaTexto = "Registro de Deuda";
+                string itemsTexto = texto;
+
+                int idxPuntos = texto.IndexOf(':');
+                if (idxPuntos > 0 && idxPuntos <= 22)
+                {
+                    fechaTexto = $"Fecha: {texto.Substring(0, idxPuntos).Trim()}";
+                    itemsTexto = texto.Substring(idxPuntos + 1).Trim();
+                }
+
+                var lblFecha = new TextBlock
+                {
+                    Text = fechaTexto,
+                    FontSize = 13,
+                    FontWeight = FontWeights.Bold,
+                    Foreground = (Brush)FindResource("ThemeTextForeground"),
+                    Margin = new Thickness(2, 4, 0, 6)
+                };
+                DeudasContainerPanel.Children.Add(lblFecha);
+
+                var cardBorder = new Border
+                {
+                    Background = (Brush)FindResource("ThemeSurfaceBackground"),
+                    BorderBrush = (Brush)FindResource("ThemeBorder"),
+                    BorderThickness = new Thickness(1),
+                    CornerRadius = new CornerRadius(12),
+                    Padding = new Thickness(14, 10, 14, 10),
+                    Margin = new Thickness(0, 0, 0, 12)
+                };
+
+                var stackCard = new StackPanel();
+
+                var headerGrid = new Grid { Margin = new Thickness(0, 0, 0, 6) };
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                headerGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+
+                var hCant = new TextBlock { Text = "Cantidad", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("ThemeTextForeground") };
+                var hProd = new TextBlock { Text = "Producto", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("ThemeTextForeground"), HorizontalAlignment = HorizontalAlignment.Center };
+                var hPrecio = new TextBlock { Text = "Precio", FontSize = 12, FontWeight = FontWeights.Bold, Foreground = (Brush)FindResource("ThemeTextForeground"), HorizontalAlignment = HorizontalAlignment.Right };
+
+                Grid.SetColumn(hCant, 0);
+                Grid.SetColumn(hProd, 1);
+                Grid.SetColumn(hPrecio, 2);
+                headerGrid.Children.Add(hCant);
+                headerGrid.Children.Add(hProd);
+                headerGrid.Children.Add(hPrecio);
+                stackCard.Children.Add(headerGrid);
+
+                var productos = itemsTexto.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                foreach (var prodRaw in productos)
+                {
+                    var pTrim = prodRaw.Trim();
+                    if (string.IsNullOrEmpty(pTrim)) continue;
+
+                    string cantidadStr = "1";
+                    string nombreProd = pTrim;
+
+                    int lastX = pTrim.LastIndexOf(" x", StringComparison.OrdinalIgnoreCase);
+                    if (lastX > 0)
+                    {
+                        var posibleCant = pTrim.Substring(lastX + 2).Trim();
+                        if (decimal.TryParse(posibleCant, NumberStyles.Any, CultureInfo.InvariantCulture, out _))
+                        {
+                            cantidadStr = posibleCant;
+                            nombreProd = pTrim.Substring(0, lastX).Trim();
+                        }
+                    }
+
+                    string precioStr = "-";
+                    if (_preciosCatalogo.TryGetValue(nombreProd, out decimal precioUnitario))
+                    {
+                        precioStr = precioUnitario.ToString("C2", culture);
+                    }
+                    else if (bloques.Length == 1 && productos.Length == 1 && decimal.TryParse(cantidadStr, NumberStyles.Any, CultureInfo.InvariantCulture, out decimal cantUnica) && cantUnica > 0)
+                    {
+                        precioStr = (deudor.MontoOriginal / cantUnica).ToString("C2", culture);
+                    }
+
+                    var rowGrid = new Grid { Margin = new Thickness(0, 4, 0, 4) };
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(65) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+                    rowGrid.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(80) });
+
+                    var txtCant = new TextBlock { Text = cantidadStr, FontSize = 13, Foreground = (Brush)FindResource("ThemeTextForeground"), Margin = new Thickness(8, 0, 0, 0) };
+                    var txtNombre = new TextBlock { Text = nombreProd, FontSize = 13, Foreground = (Brush)FindResource("ThemeTextForeground"), TextWrapping = TextWrapping.Wrap, HorizontalAlignment = HorizontalAlignment.Center };
+                    var txtPrecio = new TextBlock { Text = precioStr, FontSize = 13, Foreground = (Brush)FindResource("ThemeTextForeground"), HorizontalAlignment = HorizontalAlignment.Right };
+
+                    Grid.SetColumn(txtCant, 0);
+                    Grid.SetColumn(txtNombre, 1);
+                    Grid.SetColumn(txtPrecio, 2);
+
+                    rowGrid.Children.Add(txtCant);
+                    rowGrid.Children.Add(txtNombre);
+                    rowGrid.Children.Add(txtPrecio);
+                    stackCard.Children.Add(rowGrid);
+                }
+
+                cardBorder.Child = stackCard;
+                DeudasContainerPanel.Children.Add(cardBorder);
+            }
+        }
+
+        private void TabDeudas_Click(object sender, RoutedEventArgs e) => ActivarTabDeudas();
+        private void TabAbonos_Click(object sender, RoutedEventArgs e) => ActivarTabAbonos();
+
+        private void ActivarTabDeudas()
+        {
+            PanelDeudasView.Visibility = Visibility.Visible;
+            PanelAbonosView.Visibility = Visibility.Collapsed;
+
+            TabDeudasBtn.SetResourceReference(Control.BackgroundProperty, "ThemeAccent");
+            TabDeudasBtn.Foreground = Brushes.White;
+
+            TabAbonosBtn.SetResourceReference(Control.BackgroundProperty, "ThemeSurfaceBackground");
+            TabAbonosBtn.SetResourceReference(Control.ForegroundProperty, "ThemeTextForeground");
+
+            if (_selectedDebtor != null)
+            {
+                HistoryMontoTotalText.Text = _selectedDebtor.SaldoRestante.ToString("C2", CultureInfo.GetCultureInfo("es-MX"));
+            }
+        }
+
+        private void ActivarTabAbonos()
+        {
+            PanelDeudasView.Visibility = Visibility.Collapsed;
+            PanelAbonosView.Visibility = Visibility.Visible;
+
+            TabAbonosBtn.SetResourceReference(Control.BackgroundProperty, "ThemeAccent");
+            TabAbonosBtn.Foreground = Brushes.White;
+
+            TabDeudasBtn.SetResourceReference(Control.BackgroundProperty, "ThemeSurfaceBackground");
+            TabDeudasBtn.SetResourceReference(Control.ForegroundProperty, "ThemeTextForeground");
+
+            if (_selectedDebtor != null)
+            {
+                HistoryMontoTotalText.Text = _selectedDebtor.TotalAbonado.ToString("C2", CultureInfo.GetCultureInfo("es-MX"));
+            }
         }
 
         private void CloseHistory_Click(object sender, RoutedEventArgs e)

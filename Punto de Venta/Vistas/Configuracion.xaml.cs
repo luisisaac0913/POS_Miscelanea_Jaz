@@ -18,6 +18,7 @@ namespace Punto_de_Venta
         #region Campos Privados
         private AppConfig _config = new();
         private bool _isTestingScale = false;
+        private string _selectedColorHex = "#007AFF"; // Valor por defecto
         #endregion
 
         #region Inicialización y Constructor
@@ -39,6 +40,10 @@ namespace Punto_de_Venta
         {
             _config = AppConfig.Load();
             WhatsAppTemplateBox.Text = _config.MensajeWhatsAppRecordatorio ?? string.Empty;
+
+            // Cargar Color de Acento y aplicarlo a la vista previa
+            _selectedColorHex = _config.ColorAcentoHex ?? "#007AFF";
+            CambiarColorAcentoLocally(_selectedColorHex);
 
             // Ancho de papel
             foreach (ComboBoxItem item in PaperWidthComboBox.Items)
@@ -109,6 +114,57 @@ namespace Punto_de_Venta
             }
 
             ActualizarVistaPreviaTicket();
+        }
+        #endregion
+
+        #region Color de Acento Dinámico
+        private void ColorButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button btn && btn.Tag is string hexColor)
+            {
+                _selectedColorHex = hexColor;
+                CambiarColorAcentoLocally(hexColor);
+            }
+        }
+
+        private void CambiarColorAcentoLocally(string codigoHexadecimal)
+        {
+            try
+            {
+                var color = (Color)ColorConverter.ConvertFromString(codigoHexadecimal);
+                var nuevaBrocha = new SolidColorBrush(color);
+                nuevaBrocha.Freeze(); // Crucial para rendimiento en WPF
+
+                // 1. FORZAR ACTUALIZACIÓN EN DICCIONARIOS DE TEMAS (La clave del problema)
+                // Esto obliga a WPF a notificar a todos los DynamicResource de la aplicación al instante.
+                foreach (var dict in Application.Current.Resources.MergedDictionaries)
+                {
+                    if (dict.Contains("ThemeAccent"))
+                    {
+                        dict["ThemeAccent"] = nuevaBrocha;
+                    }
+                }
+
+                // 2. Aplicar a nivel raíz general
+                Application.Current.Resources["ThemeAccent"] = nuevaBrocha;
+
+                // 3. Forzar en la ventana actual para respuesta inmediata
+                this.Resources["ThemeAccent"] = nuevaBrocha;
+            }
+            catch
+            {
+                // Ignorar si el formato hexadecimal es incorrecto
+            }
+        }
+
+        private void RevertirColorSiNoSeGuardo()
+        {
+            // Si el usuario sale sin darle a "Guardar", devolvemos el sistema al color original
+            string colorGuardado = _config.ColorAcentoHex ?? "#007AFF";
+            if (_selectedColorHex != colorGuardado)
+            {
+                CambiarColorAcentoLocally(colorGuardado);
+            }
         }
         #endregion
 
@@ -365,6 +421,9 @@ namespace Punto_de_Venta
                 var modoOscuroSeleccionado = DarkModeCheckBox.IsChecked == true;
                 _config.ModoOscuro = modoOscuroSeleccionado;
 
+                // Guardar Color de Acento
+                _config.ColorAcentoHex = _selectedColorHex;
+
                 // Guardar la opción del PIN
                 _config.SolicitarPinAdmin = RequirePinCheckBox.IsChecked == true;
 
@@ -429,12 +488,18 @@ namespace Punto_de_Venta
 
         private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
         private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+        private void BtnClose_Click(object sender, RoutedEventArgs e)
+        {
+            RevertirColorSiNoSeGuardo();
+            Close();
+        }
 
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
             {
+                RevertirColorSiNoSeGuardo();
                 Close();
                 e.Handled = true;
             }

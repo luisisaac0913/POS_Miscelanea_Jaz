@@ -112,7 +112,7 @@ namespace Punto_de_Venta
             var start = _currentPeriod switch { Period.Day => today, Period.Week => today.AddDays(-6), Period.Month => new DateTime(today.Year, today.Month, 1), Period.Year => new DateTime(today.Year, 1, 1), _ => today };
             var selectedSales = _sales.Where(s => s.FechaHora.Date >= start && s.FechaHora.Date <= today).ToList();
             var selectedCortes = _cortes.Where(c => c.FechaHora.Date >= start && c.FechaHora.Date <= today).ToList();
-
+            var gananciaEsperada = _catalog.Sum(x => x.Ganancia * x.Stock);
             var totalVentas = selectedSales.Sum(s => s.Total);
             var totalGanancia = selectedSales.Sum(s => s.GananciaTotal);
             var totalCosto = Math.Max(0m, totalVentas - totalGanancia);
@@ -123,7 +123,7 @@ namespace Punto_de_Venta
             var balanceNeto = totalVentas - totalGastos;
 
             KpiVentaTotal.Text = totalVentas.ToString("C2", _mexicanCulture); KpiCostoTotal.Text = totalCosto.ToString("C2", _mexicanCulture); KpiGananciaNeta.Text = totalGanancia.ToString("C2", _mexicanCulture); KpiGastosTotal.Text = totalGastos.ToString("C2", _mexicanCulture); KpiBalanceNeto.Text = balanceNeto.ToString("C2", _mexicanCulture);
-            KpiTransacciones.Text = $"{transacciones} venta(s)"; KpiTicketPromedio.Text = $"Ticket prom: {ticketPromedio.ToString("C2", _mexicanCulture)}"; KpiMargenPorcentaje.Text = $"Margen: {margenPct:F1}%";
+            InversionTotal.Text = $"{gananciaEsperada.ToString("C",_mexicanCulture)}"; KpiTransacciones.Text = $"{transacciones} venta(s)"; KpiTicketPromedio.Text = $"Ticket prom: {ticketPromedio.ToString("C2", _mexicanCulture)}"; KpiMargenPorcentaje.Text = $"Margen: {margenPct:F1}%";
 
             ActualizarEstiloBotonPeriodo(DayButton, _currentPeriod == Period.Day); ActualizarEstiloBotonPeriodo(WeekButton, _currentPeriod == Period.Week); ActualizarEstiloBotonPeriodo(MonthButton, _currentPeriod == Period.Month); ActualizarEstiloBotonPeriodo(YearButton, _currentPeriod == Period.Year);
             ActualizarEstiloBotonSidebar(NavFinanzasBtn, _currentView == ChartView.Finanzas); ActualizarEstiloBotonSidebar(NavMetodosBtn, _currentView == ChartView.MetodosPago); ActualizarEstiloBotonSidebar(NavCategoriasBtn, _currentView == ChartView.Categorias); ActualizarEstiloBotonSidebar(NavHorasBtn, _currentView == ChartView.HorasPico); ActualizarEstiloBotonSidebar(NavRentabilidadBtn, _currentView == ChartView.Rentabilidad); ActualizarEstiloBotonSidebar(NavCortesBtn, _currentView == ChartView.CortesCaja);

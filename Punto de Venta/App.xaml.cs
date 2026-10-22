@@ -18,7 +18,25 @@ namespace Punto_de_Venta
             Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
             "POS_DataStorage",
             "error_log.txt");
+        public static void CambiarColorAcento(string codigoHexadecimal)
+        {
+            try
+            {
+                // Convertimos el texto (ej. "#FF3B30") a un Color de WPF
+                var color = (Color)ColorConverter.ConvertFromString(codigoHexadecimal);
 
+                // Creamos la brocha
+                var nuevaBrocha = new SolidColorBrush(color);
+
+                // ¡La magia! Sobrescribimos el recurso global.
+                // Todos los controles con {DynamicResource ThemeAccent} se actualizarán al instante.
+                Application.Current.Resources["ThemeAccent"] = nuevaBrocha;
+            }
+            catch
+            {
+                // Si mandan un código inválido, simplemente lo ignoramos
+            }
+        }
         protected override void OnStartup(StartupEventArgs e)
         {
             DispatcherUnhandledException += App_DispatcherUnhandledException;
@@ -63,6 +81,7 @@ namespace Punto_de_Venta
             {
                 var config = AppConfig.Load();
                 SetDarkMode(config.ModoOscuro);
+                CambiarColorAcento(config.ColorAcentoHex);
             }
             catch (Exception ex)
             {

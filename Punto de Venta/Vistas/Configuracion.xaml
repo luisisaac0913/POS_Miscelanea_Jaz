@@ -313,8 +313,70 @@
                                             <CheckBox x:Name="DarkModeCheckBox" Grid.Column="1" VerticalAlignment="Center" />
                                         </Grid>
                                     </Border>
-                                </StackPanel>
+                                    <!-- ================= COLOR DE ACENTO ================= -->
+                                    <TextBlock Text="Color de Acento" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,24,0,4" />
+                                    <TextBlock Text="Elige el color principal para los botones, selecciones y resaltados del sistema." FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,0,0,12" TextWrapping="Wrap" />
 
+                                    <StackPanel Orientation="Horizontal">
+                                        <!-- Azul iOS -->
+                                        <Button Width="36" Height="36" Margin="0,0,12,0" Cursor="Hand" Tag="#007AFF" Click="ColorButton_Click" ToolTip="Azul Clásico">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#007AFF" CornerRadius="18" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" />
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- Verde Esmeralda -->
+                                        <Button Width="36" Height="36" Margin="0,0,12,0" Cursor="Hand" Tag="#10B981" Click="ColorButton_Click" ToolTip="Verde Esmeralda">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#10B981" CornerRadius="18" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" />
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- Morado Neón -->
+                                        <Button Width="36" Height="36" Margin="0,0,12,0" Cursor="Hand" Tag="#8B5CF6" Click="ColorButton_Click" ToolTip="Morado Neón">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#8B5CF6" CornerRadius="18" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" />
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- Naranja Vibrante -->
+                                        <Button Width="36" Height="36" Margin="0,0,12,0" Cursor="Hand" Tag="#F97316" Click="ColorButton_Click" ToolTip="Naranja Vibrante">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#F97316" CornerRadius="18" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" />
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- Rojo Carmesí -->
+                                        <Button Width="36" Height="36" Margin="0,0,12,0" Cursor="Hand" Tag="#E11D48" Click="ColorButton_Click" ToolTip="Rojo Carmesí">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#E11D48" CornerRadius="18" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" />
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- Rosa Hot Pink -->
+                                        <Button Width="36" Height="36" Margin="0,0,12,0" Cursor="Hand" Tag="#EC4899" Click="ColorButton_Click" ToolTip="Rosa">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#EC4899" CornerRadius="18" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" />
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                        <!-- Gris Oscuro -->
+                                        <Button Width="36" Height="36" Margin="0,0,12,0" Cursor="Hand" Tag="#3F3F46" Click="ColorButton_Click" ToolTip="Gris Elegante">
+                                            <Button.Template>
+                                                <ControlTemplate TargetType="Button">
+                                                    <Border Background="#3F3F46" CornerRadius="18" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" />
+                                                </ControlTemplate>
+                                            </Button.Template>
+                                        </Button>
+                                    </StackPanel>
+                                </StackPanel>
+                                
                                 <!-- ================= SECCIÓN 3: BÁSCULA DIGITAL ================= -->
                                 <StackPanel x:Name="PanelBascula" Visibility="Collapsed">
                                     <TextBlock Text="Báscula Digital (Puerto Serie RS-232)" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,6" />

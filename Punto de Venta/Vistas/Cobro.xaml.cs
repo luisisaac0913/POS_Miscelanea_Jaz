@@ -711,7 +711,24 @@ namespace Punto_de_Venta
                 }
                 return;
             }
+            // Cierra el modal de Restock si está abierto
+            if (QuickRestockOverlay.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    CloseQuickRestock();
+                    e.Handled = true;
+                }
+                return;
+            }
 
+            // Abre el modal de Restock Rápido con F10
+            if (e.Key == Key.F10 || (e.Key == Key.System && e.SystemKey == Key.F10))
+            {
+                OpenQuickRestockModal();
+                e.Handled = true;
+                return;
+            }
             if (CreditOverlay.Visibility == Visibility.Visible)
             {
                 if (e.Key == Key.Escape)
@@ -1554,6 +1571,124 @@ namespace Punto_de_Venta
             if (FindName("PromotionsCountText") is TextBlock promoBlock)
             {
                 promoBlock.Text = resultadoPromo.PromocionesAplicadasCount.ToString(culture);
+            }
+        }
+        #endregion
+
+        #region Módulo Modo ReStock Rápido (Modal Instantáneo)
+        private void OpenQuickRestockModal()
+        {
+            // Cerramos sugerencias u otros popups si están abiertos
+            if (FindName("SuggestionsPopup") is System.Windows.Controls.Primitives.Popup popup)
+                popup.IsOpen = false;
+
+            QrScanCodeBox.Clear();
+            QrAddAmountBox.Text = "1";
+            QrFoundProductLabel.Text = string.Empty;
+            QrStatusMessage.Text = string.Empty;
+
+            QuickRestockOverlay.Visibility = Visibility.Visible;
+            QrScanCodeBox.Focus();
+            Keyboard.Focus(QrScanCodeBox);
+        }
+
+        private void CloseQuickRestock_Click(object sender, RoutedEventArgs e) => CloseQuickRestock();
+
+        private void CloseQuickRestock()
+        {
+            QuickRestockOverlay.Visibility = Visibility.Collapsed;
+            FocusSearch(); // Regresa el foco al buscador principal de cobro
+        }
+
+        private void QrScanCodeBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter) return;
+
+            var code = QrScanCodeBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(code)) return;
+
+            var prod = _catalog.FirstOrDefault(p =>
+                string.Equals(p.Codigo, code, StringComparison.OrdinalIgnoreCase) ||
+                p.Id.ToString(CultureInfo.InvariantCulture) == code);
+
+            if (prod != null)
+            {
+                QrFoundProductLabel.Text = $"✅ {prod.Nombre} (Stock actual: {prod.Stock})";
+                QrStatusMessage.Text = string.Empty;
+                QrAddAmountBox.Focus();
+                QrAddAmountBox.SelectAll();
+            }
+            else
+            {
+                QrFoundProductLabel.Text = string.Empty;
+                QrStatusMessage.Text = "⚠️ Producto no encontrado con ese código.";
+                QrScanCodeBox.SelectAll();
+            }
+
+            e.Handled = true;
+        }
+
+        private void QrAddAmountBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                ConfirmQuickRestockProcess();
+                e.Handled = true;
+            }
+        }
+
+        private void ConfirmQuickRestock_Click(object sender, RoutedEventArgs e) => ConfirmQuickRestockProcess();
+
+        private void ConfirmQuickRestockProcess()
+        {
+            var code = QrScanCodeBox.Text.Trim();
+            var amountText = QrAddAmountBox.Text.Trim();
+
+            if (string.IsNullOrWhiteSpace(code))
+            {
+                QrStatusMessage.Text = "Escanea o escribe un código.";
+                QrScanCodeBox.Focus();
+                return;
+            }
+
+            var prod = _catalog.FirstOrDefault(p =>
+                string.Equals(p.Codigo, code, StringComparison.OrdinalIgnoreCase) ||
+                p.Id.ToString(CultureInfo.InvariantCulture) == code);
+
+            if (prod == null)
+            {
+                QrStatusMessage.Text = "Producto no encontrado.";
+                QrScanCodeBox.Focus();
+                return;
+            }
+
+            if (!int.TryParse(amountText, out var addAmount) || addAmount <= 0)
+            {
+                QrStatusMessage.Text = "Ingresa una cantidad entera mayor a 0.";
+                QrAddAmountBox.Focus();
+                QrAddAmountBox.SelectAll();
+                return;
+            }
+
+            prod.Stock += addAmount;
+
+            try
+            {
+                ProductoDB.Save(_catalog);
+
+                ToastNotification.Show($"+{addAmount} pzas añadidas a '{prod.Nombre}'. Nuevo Stock: {prod.Stock}", ToastType.Success);
+
+                QrScanCodeBox.Clear();
+                QrAddAmountBox.Text = "1";
+                QrFoundProductLabel.Text = $"Último: {prod.Nombre} (Stock: {prod.Stock})";
+                QrStatusMessage.Text = string.Empty;
+                QrScanCodeBox.Focus();
+            }
+            catch (Exception ex)
+            {
+                prod.Stock -= addAmount; // Revertir en memoria si falla BD
+                QrStatusMessage.Text = "Error al guardar en disco.";
+                ToastNotification.Show($"Error al guardar: {ex.Message}", ToastType.Error);
             }
         }
         #endregion

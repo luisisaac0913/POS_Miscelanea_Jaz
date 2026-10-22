@@ -169,5 +169,35 @@ namespace Punto_de_Venta.Datos
                 return false;
             }
         }
+
+        // ==========================================
+        // NUEVOS MÉTODOS AGREGADOS: UPDATE Y DELETE
+        // ==========================================
+
+        public static bool Update(Promocion promo, out string mensajeError)
+        {
+            // Reutilizamos la lógica de Save, ya que detecta automáticamente si Id > 0 hace el UPDATE.
+            return Save(promo, out mensajeError);
+        }
+
+        public static bool Delete(int id)
+        {
+            try
+            {
+                using var conn = DatabaseHelper.GetConnection();
+                AsegurarTabla(conn);
+
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "DELETE FROM Promociones WHERE Id = @id;";
+                cmd.Parameters.AddWithValue("@id", id);
+
+                return cmd.ExecuteNonQuery() > 0;
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"[Promociones] Error eliminando: {ex.Message}");
+                return false;
+            }
+        }
     }
 }

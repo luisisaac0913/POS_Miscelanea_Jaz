@@ -15,6 +15,7 @@ namespace Punto_de_Venta
         public string ImpresoraSeleccionada { get; set; } = string.Empty;
         public int AnchoTicketCaracteres { get; set; } = 32;
         public string RutaRespaldos { get; set; } = string.Empty;
+        public string ColorAcentoHex { get; set; } = "#007AFF"; 
         public string NombreNegocio { get; set; } = "MISCELANEA JAZ";
         public string GiroNegocio { get; set; } = "Abarrotes y Novedades";
         public bool SolicitarPinAdmin { get; set; } = false;

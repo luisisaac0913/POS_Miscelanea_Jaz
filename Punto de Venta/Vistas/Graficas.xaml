@@ -265,6 +265,8 @@
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="12" />
                         <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="12" />
+                        <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
 
                     <!-- KPI 1: Venta Total -->
@@ -279,9 +281,9 @@
                     <!-- KPI 2: Inversión en Mercancía -->
                     <Border Grid.Column="2" Style="{StaticResource CardStyle}" Padding="14,12">
                         <StackPanel>
-                            <TextBlock Text="COSTO (INVERSIÓN)" FontFamily="Segoe UI Variable, Segoe UI" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" />
+                            <TextBlock Text="COSTO (INVERSION)" FontFamily="Segoe UI Variable, Segoe UI" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" />
                             <TextBlock x:Name="KpiCostoTotal" Text="$0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,2" />
-                            <TextBlock Text="Mercancía surtida" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" />
+                            <TextBlock Text="Mercancia vendida" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" />
                         </StackPanel>
                     </Border>
 
@@ -309,6 +311,14 @@
                             <TextBlock Text="BALANCE NETO" FontFamily="Segoe UI Variable, Segoe UI" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" />
                             <TextBlock x:Name="KpiBalanceNeto" Text="$0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="20" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}" Margin="0,4,0,2" />
                             <TextBlock x:Name="KpiTicketPromedio" Text="Ticket: $0.00" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" />
+                        </StackPanel>
+                    </Border>
+                    <!-- KPI 6: Ganancia Esperada-->
+                    <Border Grid.Column="10" Style="{StaticResource CardStyle}" Padding="14,12">
+                        <StackPanel>
+                            <TextBlock Text="GANANCIA ESPERADA" FontFamily="Segoe UI Variable, Segoe UI" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" />
+                            <TextBlock x:Name="InversionTotal" Text="$0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="20" FontWeight="Bold" Foreground="{StaticResource ThemeTextForeground}" Margin="0,4,0,2" />
+                            <TextBlock x:Name="InversionTotalProductos" Text="Mercancia surtida" FontSize="12" Foreground="{StaticResource ThemeTextForeground}" />
                         </StackPanel>
                     </Border>
                 </Grid>
@@ -345,7 +355,8 @@
                                 <RowDefinition Height="*" />
                             </Grid.RowDefinitions>
 
-                            <TextBlock x:Name="ChartTitleText" Text="Venta Total vs Costo vs Ganancia Neta" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,12" />
+                            <TextBlock x:Name="ChartTitleText" Text="VS
+                                       " FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,12" />
 
                             <!-- Gráfica Cartesiana LiveCharts (Barras / Líneas) -->
                             <lvc:CartesianChart x:Name="MainChartView" Grid.Row="1" Series="{Binding SeriesPrincipal}" XAxes="{Binding EjesXPrincipal}" YAxes="{Binding EjesYPrincipal}" />
@@ -489,12 +500,19 @@
                                             <TextBlock Text="Distribución horaria que muestra a qué horas del día se concentra el mayor volumen de clientes para reforzar la atención en mostrador." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Border>
+                                    <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,12" Margin="0,0,0,10">
+                                        <StackPanel>
+                                            <TextBlock Text="Ganancia esperada" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ThemeTextForeground}" />
+                                            <TextBlock Text="La suma de la multiplicacio de la ganancia por la cantidad de stock disponible de cada producto." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
+                                        </StackPanel>
+                                    </Border>
                                     <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,12">
                                         <StackPanel>
                                             <TextBlock Text="Rentabilidad Top" FontWeight="Bold" FontSize="14" Foreground="{DynamicResource ThemeTextForeground}" />
                                             <TextBlock Text="Ranking de artículos ordenados por dinero neto que dejan a la caja, no solo por piezas vendidas." TextWrapping="Wrap" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,4,0,0" />
                                         </StackPanel>
                                     </Border>
+
                                 </StackPanel>
                             </ScrollViewer>
 

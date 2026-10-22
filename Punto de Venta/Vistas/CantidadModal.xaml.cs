@@ -39,7 +39,7 @@ namespace Punto_de_Venta
 
         private void Window_Loaded(object sender, RoutedEventArgs e)
         {
-            QuantityBox.Text = "50"; // Sugerencia inicial comun para recargas
+            QuantityBox.Text = "1"; // Sugerencia inicial comun para recargas
             QuantityBox.Focus();
             QuantityBox.SelectAll();
         }

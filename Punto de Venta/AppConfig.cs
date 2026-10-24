@@ -28,6 +28,7 @@ namespace Punto_de_Venta
         public string BasculaPuerto { get; set; } = "COM1";
         public int BasculaBaudRate { get; set; } = 9600;
         public string BasculaProtocolo { get; set; } = "Torrey / Rhino (Petición P)"; // Opciones: "Torrey / Rhino (Petición P)", "Modo Continuo"
+        public bool BasculaModoPrecio { get; set; } = false;
 
         // Hash SHA-256 de "1234" por defecto
         public string PinAdminHash { get; set; } = "03ac674216f3e15c761ee1a5e255f067953623c8b388b4459e13f978d7c846f4";

@@ -582,14 +582,25 @@
                     <StackPanel>
                         <TextBlock Text="⚖️ Pesaje de Mercancía" FontFamily="Segoe UI Variable, Segoe UI" FontSize="22" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,4" />
                         <TextBlock x:Name="ScaleProductNameText" Text="Producto a granel seleccionado" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,0,0,18" />
+
+                        <!-- PESTAÑAS (Modo Peso / Modo Precio) -->
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <RadioButton x:Name="TabModoPeso" Content="🗂️ Por Peso (kg)" GroupName="ScaleMode" Style="{StaticResource {x:Type ToggleButton}}" HorizontalAlignment="Stretch" Checked="ScaleMode_Checked" Margin="0,0,4,0" Cursor="Hand" Padding="0,8"/>
+                            <RadioButton x:Name="TabModoPrecio" Grid.Column="1" Content="💵 Por Precio ($)" GroupName="ScaleMode" Style="{StaticResource {x:Type ToggleButton}}" HorizontalAlignment="Stretch" Checked="ScaleMode_Checked" Margin="4,0,0,0" Cursor="Hand" Padding="0,8"/>
+                        </Grid>
+
                         <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="18" Padding="20,16" Margin="0,0,0,14">
                             <Grid>
                                 <Grid.RowDefinitions>
                                     <RowDefinition Height="Auto" />
                                     <RowDefinition Height="Auto" />
                                 </Grid.RowDefinitions>
-                                <TextBlock Text="PESO DETECTADO (KG)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" HorizontalAlignment="Center" />
-                                <TextBox x:Name="ScaleWeightInput" Grid.Row="1" Background="Transparent" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="44" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" CaretBrush="{DynamicResource ThemeAccent}" Text="0.000" Margin="0,6,0,0" TextChanged="ScaleWeightInput_TextChanged" PreviewTextInput="CashReceivedBox_PreviewTextInput" KeyDown="ScaleWeightInput_KeyDown" />
+                                <TextBlock x:Name="ScaleInputLabel" Text="PESO DETECTADO (KG)" FontSize="11" FontWeight="Bold" Foreground="{DynamicResource ThemeMutedForeground}" HorizontalAlignment="Center" />
+                                <TextBox x:Name="ScaleValueInput" Grid.Row="1" Background="Transparent" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="44" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" HorizontalContentAlignment="Center" VerticalContentAlignment="Center" CaretBrush="{DynamicResource ThemeAccent}" Text="0.000" Margin="0,6,0,0" TextChanged="ScaleValueInput_TextChanged" PreviewTextInput="CashReceivedBox_PreviewTextInput" KeyDown="ScaleValueInput_KeyDown" />
                             </Grid>
                         </Border>
                         <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="14" Padding="14,10" Margin="0,0,0,16">
@@ -603,8 +614,8 @@
                                     <TextBlock x:Name="ScalePricePerKgText" Text="$0.00 / kg" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center">
-                                    <TextBlock Text="Importe total:" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" HorizontalAlignment="Right" />
-                                    <TextBlock x:Name="ScaleTotalAmountText" Text="$0.00" FontSize="18" FontWeight="Bold" Foreground="{StaticResource SystemGreen}" HorizontalAlignment="Right" />
+                                    <TextBlock x:Name="ScaleResultLabel" Text="Importe total:" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" HorizontalAlignment="Right" />
+                                    <TextBlock x:Name="ScaleResultText" Text="$0.00" FontSize="18" FontWeight="Bold" Foreground="{StaticResource SystemGreen}" HorizontalAlignment="Right" />
                                 </StackPanel>
                             </Grid>
                         </Border>

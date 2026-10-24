@@ -215,6 +215,7 @@ namespace Punto_de_Venta.Vistas
         #endregion
 
         #region Módulo de Pesaje con Báscula (F8)
+
         private async void AbrirModalPesaje()
         {
             var cartGrid = (DataGrid)FindName("CartGrid");
@@ -247,14 +248,62 @@ namespace Punto_de_Venta.Vistas
 
             ScaleProductNameText.Text = $"{_itemEnPesaje.Nombre}";
             ScalePricePerKgText.Text = $"{_itemEnPesaje.Precio.ToString("C2", CultureInfo.GetCultureInfo("es-MX"))} / kg";
-            ScaleWeightInput.Text = _itemEnPesaje.Cantidad > 0 ? _itemEnPesaje.Cantidad.ToString("0.000", CultureInfo.InvariantCulture) : "0.000";
+
+            // Cargar la preferencia predeterminada de Configuración (Debes crear BasculaModoPrecio en Settings)
+            var config = AppConfig.Load();
+            bool abrirEnModoPrecio = config.BasculaModoPrecio;
+
+            if (abrirEnModoPrecio)
+            {
+                TabModoPrecio.IsChecked = true;
+            }
+            else
+            {
+                TabModoPeso.IsChecked = true;
+                ScaleValueInput.Text = _itemEnPesaje.Cantidad > 0 ? _itemEnPesaje.Cantidad.ToString("0.000", CultureInfo.InvariantCulture) : "0.000";
+            }
+
             ActualizarCalculoPesaje();
 
             ScaleOverlay.Visibility = Visibility.Visible;
-            ScaleWeightInput.Focus();
-            ScaleWeightInput.SelectAll();
+            ScaleValueInput.Focus();
+            ScaleValueInput.SelectAll();
 
-            await ConsultarBasculaAsync();
+            // Solo consultar la báscula física si estamos en modo Peso
+            if (!abrirEnModoPrecio)
+            {
+                await ConsultarBasculaAsync();
+            }
+            else
+            {
+                ScaleStatusText.Text = "Modo inverso activo: Escribe el monto en pesos.";
+            }
+        }
+
+        private void ScaleMode_Checked(object sender, RoutedEventArgs e)
+        {
+            if (!IsLoaded || _itemEnPesaje == null) return;
+
+            bool isPriceMode = TabModoPrecio.IsChecked == true;
+
+            if (isPriceMode)
+            {
+                ScaleInputLabel.Text = "MONTO A GASTAR ($)";
+                ScaleResultLabel.Text = "Peso equivalente:";
+                ScaleValueInput.Text = "0.00";
+                ScaleStatusText.Text = "Modo inverso activo: Escribe el monto en pesos.";
+            }
+            else
+            {
+                ScaleInputLabel.Text = "PESO DETECTADO (KG)";
+                ScaleResultLabel.Text = "Importe total:";
+                ScaleValueInput.Text = _itemEnPesaje.Cantidad > 0 ? _itemEnPesaje.Cantidad.ToString("0.000", CultureInfo.InvariantCulture) : "0.000";
+                ScaleStatusText.Text = "Listo para leer báscula.";
+            }
+
+            ScaleValueInput.Focus();
+            ScaleValueInput.SelectAll();
+            ActualizarCalculoPesaje();
         }
 
         private async Task ConsultarBasculaAsync()
@@ -264,7 +313,7 @@ namespace Punto_de_Venta.Vistas
 
             if (resultado.Exito && resultado.Peso > 0)
             {
-                ScaleWeightInput.Text = resultado.Peso.ToString("0.000", CultureInfo.InvariantCulture);
+                ScaleValueInput.Text = resultado.Peso.ToString("0.000", CultureInfo.InvariantCulture);
                 ScaleStatusText.Text = $"✅ Lectura recibida: {resultado.Peso:0.000} kg";
                 ActualizarCalculoPesaje();
             }
@@ -284,21 +333,33 @@ namespace Punto_de_Venta.Vistas
             var usCulture = CultureInfo.GetCultureInfo("en-US");
             var mxCulture = CultureInfo.GetCultureInfo("es-MX");
 
-            if (decimal.TryParse(ScaleWeightInput.Text.Trim(), styles, usCulture, out var peso) ||
-                decimal.TryParse(ScaleWeightInput.Text.Trim(), styles, mxCulture, out peso))
+            bool isPriceMode = TabModoPrecio.IsChecked == true;
+
+            if (decimal.TryParse(ScaleValueInput.Text.Trim(), styles, usCulture, out var valor) ||
+                decimal.TryParse(ScaleValueInput.Text.Trim(), styles, mxCulture, out valor))
             {
-                var importe = peso * _itemEnPesaje.Precio;
-                ScaleTotalAmountText.Text = importe.ToString("C2", mxCulture);
+                if (isPriceMode)
+                {
+                    decimal pesoCalculado = _itemEnPesaje.Precio > 0 ? valor / _itemEnPesaje.Precio : 0;
+                    ScaleResultText.Text = $"{pesoCalculado:0.000} kg";
+                    ScaleResultText.Foreground = (Brush)FindResource("ThemeTextForeground"); // Neutral color for kg
+                }
+                else
+                {
+                    decimal importe = valor * _itemEnPesaje.Precio;
+                    ScaleResultText.Text = importe.ToString("C2", mxCulture);
+                    ScaleResultText.Foreground = (Brush)FindResource("SystemGreen"); // Green for money
+                }
             }
             else
             {
-                ScaleTotalAmountText.Text = "$0.00";
+                ScaleResultText.Text = isPriceMode ? "0.000 kg" : "$0.00";
             }
         }
 
-        private void ScaleWeightInput_TextChanged(object sender, TextChangedEventArgs e) => ActualizarCalculoPesaje();
+        private void ScaleValueInput_TextChanged(object sender, TextChangedEventArgs e) => ActualizarCalculoPesaje();
 
-        private void ScaleWeightInput_KeyDown(object sender, KeyEventArgs e)
+        private void ScaleValueInput_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Enter)
             {
@@ -307,7 +368,11 @@ namespace Punto_de_Venta.Vistas
             }
         }
 
-        private async void RereadScale_Click(object sender, RoutedEventArgs e) => await ConsultarBasculaAsync();
+        private async void RereadScale_Click(object sender, RoutedEventArgs e)
+        {
+            TabModoPeso.IsChecked = true; // Forzar modo peso al releer hardware
+            await ConsultarBasculaAsync();
+        }
 
         private void CancelScale_Click(object sender, RoutedEventArgs e)
         {
@@ -349,20 +414,28 @@ namespace Punto_de_Venta.Vistas
             var usCulture = CultureInfo.GetCultureInfo("en-US");
             var mxCulture = CultureInfo.GetCultureInfo("es-MX");
 
-            if (!decimal.TryParse(ScaleWeightInput.Text.Trim(), styles, usCulture, out var peso) &&
-                !decimal.TryParse(ScaleWeightInput.Text.Trim(), styles, mxCulture, out peso) || peso <= 0)
+            if (!decimal.TryParse(ScaleValueInput.Text.Trim(), styles, usCulture, out var valorIngresado) &&
+                !decimal.TryParse(ScaleValueInput.Text.Trim(), styles, mxCulture, out valorIngresado) || valorIngresado <= 0)
             {
-                ToastNotification.Show("Ingresa un peso válido mayor a 0", ToastType.Warning);
-                ScaleWeightInput.Focus();
-                ScaleWeightInput.SelectAll();
+                ToastNotification.Show("Ingresa una cantidad válida mayor a 0", ToastType.Warning);
+                ScaleValueInput.Focus();
+                ScaleValueInput.SelectAll();
                 return;
             }
 
-            _itemEnPesaje.Cantidad = peso;
+            bool isPriceMode = TabModoPrecio.IsChecked == true;
+            decimal pesoFinal = valorIngresado;
+
+            if (isPriceMode)
+            {
+                pesoFinal = _itemEnPesaje.Precio > 0 ? valorIngresado / _itemEnPesaje.Precio : 0;
+            }
+
+            _itemEnPesaje.Cantidad = Math.Round(pesoFinal, 3);
             RefreshSummary();
 
             ScaleOverlay.Visibility = Visibility.Collapsed;
-            ToastNotification.Show($"Peso registrado: {peso:0.000} kg en '{_itemEnPesaje.Nombre}'", ToastType.Success);
+            ToastNotification.Show($"Peso registrado: {_itemEnPesaje.Cantidad:0.000} kg en '{_itemEnPesaje.Nombre}'", ToastType.Success);
             FocusSearch();
         }
         #endregion
@@ -1403,7 +1476,7 @@ namespace Punto_de_Venta.Vistas
         private void PaymentMethod_Changed(object sender, RoutedEventArgs e)
         {
             if (RbMixto == null || RbEfectivo == null) return;
-            var total = ObtenerTotalNetoVenta();
+            var total = Math.Round(ObtenerTotalNetoVenta(), 2);
 
             if (RbMixto.IsChecked == true)
             {
@@ -1479,7 +1552,7 @@ namespace Punto_de_Venta.Vistas
         private void FinalizePayment()
         {
             var culture = CultureInfo.GetCultureInfo("es-MX");
-            var total = ObtenerTotalNetoVenta();
+            var total = Math.Round(ObtenerTotalNetoVenta(), 2);
 
             decimal amountReceived = 0m;
             decimal pEfectivo = 0m, pTarjeta = 0m, pTransf = 0m;
@@ -1664,7 +1737,7 @@ namespace Punto_de_Venta.Vistas
                 }
             }
 
-            var total = ObtenerTotalNetoVenta();
+            var total = Math.Round(ObtenerTotalNetoVenta(), 2);
 
             if (amountReceived >= total)
             {

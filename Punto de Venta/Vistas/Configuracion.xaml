@@ -177,6 +177,7 @@
                             <StackPanel x:Name="PanelPersonalizacion" Visibility="Collapsed">
                                 <TextBlock Text="Apariencia y Tema" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,10" />
 
+                                <!-- MODO OSCURO -->
                                 <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="12" Padding="14" Margin="0,0,0,14">
                                     <Grid>
                                         <Grid.ColumnDefinitions>
@@ -190,6 +191,25 @@
                                         <CheckBox x:Name="DarkModeCheckBox" Grid.Column="1" VerticalAlignment="Center" />
                                     </Grid>
                                 </Border>
+
+                                <!-- MODO PREDETERMINADO DE BÁSCULA -->
+                                <Border Background="{DynamicResource ThemeInputBackground}" CornerRadius="12" Padding="14" Margin="0,0,0,14">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <TextBlock Text="Modo de báscula (F8)" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" />
+                                            <TextBlock Text="Elige cómo se abre la ventana de pesaje por defecto" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,2,0,0" />
+                                        </StackPanel>
+                                        <ComboBox x:Name="CmbModoBascula" Grid.Column="1" Width="150" VerticalAlignment="Center" SelectionChanged="CmbModoBascula_SelectionChanged">
+                                            <ComboBoxItem Content="Por Peso (kg)" />
+                                            <ComboBoxItem Content="Por Precio ($)" />
+                                        </ComboBox>
+                                    </Grid>
+                                </Border>
+
                                 <!-- ================= COLOR DE ACENTO ================= -->
                                 <TextBlock Text="Color de Acento" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,24,0,4" />
                                 <TextBlock Text="Elige el color principal para los botones, selecciones y resaltados del sistema." FontFamily="Segoe UI Variable, Segoe UI" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" Margin="0,0,0,12" TextWrapping="Wrap" />
@@ -253,7 +273,7 @@
                                     </Button>
                                 </StackPanel>
                             </StackPanel>
-
+                            
                             <!-- ================= SECCIÓN 3: BÁSCULA DIGITAL ================= -->
                             <StackPanel x:Name="PanelBascula" Visibility="Collapsed">
                                 <TextBlock Text="Báscula Digital (Puerto Serie RS-232)" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" Margin="0,0,0,6" />

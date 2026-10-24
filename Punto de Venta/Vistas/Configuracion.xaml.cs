@@ -40,6 +40,7 @@ namespace Punto_de_Venta
         {
             CargarDatosFormulario();
             await CargarDispositivosAsync();
+            CmbModoBascula.SelectedIndex = _config.BasculaModoPrecio ? 1 : 0;
             this.Focus();
         }
 
@@ -274,7 +275,14 @@ namespace Punto_de_Venta
 
         private void TicketField_TextChanged(object sender, TextChangedEventArgs e) => ActualizarVistaPreviaTicket();
         private void PaperWidthComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => ActualizarVistaPreviaTicket();
+        private void CmbModoBascula_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (!IsLoaded || _config == null) return;
 
+            // Guardar la preferencia usando tu método Save()
+            _config.BasculaModoPrecio = CmbModoBascula.SelectedIndex == 1;
+            _config.Save();
+        }
         private void ActualizarVistaPreviaTicket()
         {
             if (PreviewTicketText == null) return;

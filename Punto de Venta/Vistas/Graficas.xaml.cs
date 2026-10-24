@@ -1,3 +1,10 @@
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
+using Punto_de_Venta.Datos;
+using Punto_de_Venta.Modelos;
+using Punto_de_Venta.Vistas;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -10,16 +17,10 @@ using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Windows.Threading;
-using LiveChartsCore;
-using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore.SkiaSharpView.Painting;
-using Punto_de_Venta.Datos;
-using Punto_de_Venta.Modelos;
-using SkiaSharp;
 
 namespace Punto_de_Venta
 {
-    public partial class Graficas : Window, INotifyPropertyChanged
+    public partial class Graficas : UserControl, INotifyPropertyChanged
     {
         #region Campos Privados
         private readonly DispatcherTimer _clockTimer;
@@ -32,7 +33,6 @@ namespace Punto_de_Venta
         private Period _currentPeriod = Period.Day;
         private ChartView _currentView = ChartView.Finanzas;
 
-        // Variables para el periodo Custom
         private DateTime _customStart = DateTime.Today;
         private DateTime _customEnd = DateTime.Today;
         #endregion
@@ -64,10 +64,23 @@ namespace Punto_de_Venta
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
-            Closed += (_, _) => _clockTimer.Stop();
+
+            // Reemplazo del evento Closed de Window por Unloaded de UserControl
+            Unloaded += (_, _) => _clockTimer.Stop();
+
             RefreshData();
         }
-
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    this.Focus();
+                    Keyboard.Focus(this);
+                }));
+            }
+        }
         private void HydrateSaleProfit(Venta sale)
         {
             if (sale.Productos.Count > 0)
@@ -96,21 +109,46 @@ namespace Punto_de_Venta
         }
         #endregion
 
-        #region Eventos de Ventana y UI
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (e.ClickCount == 2) WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; else DragMove(); }
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-        private void Window_Loaded(object sender, RoutedEventArgs e) => DayButton.Focus();
+        #region Eventos de UI
+        private void UserControl_Loaded(object sender, RoutedEventArgs e) => DayButton.Focus();
 
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (HelpOverlay.Visibility == Visibility.Visible && e.Key == Key.Escape) { HelpOverlay.Visibility = Visibility.Collapsed; e.Handled = true; return; }
-            if (MovimientosOverlay.Visibility == Visibility.Visible && e.Key == Key.Escape) { MovimientosOverlay.Visibility = Visibility.Collapsed; e.Handled = true; return; }
-            if (e.Key == Key.Escape) { Close(); e.Handled = true; }
+            if (e.IsRepeat) return;
+
+            // 1. Interceptar modales activos para cerrarlos de forma individual con ESC
+            if (HelpOverlay != null && HelpOverlay.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    HelpOverlay.Visibility = Visibility.Collapsed;
+                    e.Handled = true;
+                }
+                return;
+            }
+
+            if (MovimientosOverlay != null && MovimientosOverlay.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    MovimientosOverlay.Visibility = Visibility.Collapsed;
+                    e.Handled = true;
+                }
+                return;
+            }
+
+            // 2. Si no hay ningún modal abierto, ESC regresa al menú principal
+            if (e.Key == Key.Escape)
+            {
+                this.Visibility = Visibility.Collapsed;
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RegresarAlMenu();
+                }
+                e.Handled = true;
+            }
         }
 
-        // --- Ayuda ---
         private void HelpButton_Click(object sender, RoutedEventArgs e) { HelpOverlay.Visibility = Visibility.Visible; HelpOverlay.Focus(); }
         private void CloseHelp_Click(object sender, RoutedEventArgs e) { HelpOverlay.Visibility = Visibility.Collapsed; }
         private void HelpOverlay_MouseDown(object sender, MouseButtonEventArgs e) { if (ReferenceEquals(e.OriginalSource, HelpOverlay)) HelpOverlay.Visibility = Visibility.Collapsed; }
@@ -128,7 +166,6 @@ namespace Punto_de_Venta
         private void MonthButton_Click(object sender, RoutedEventArgs e) { _currentPeriod = Period.Month; RestoreNormalPeriods(); RefreshData(); }
         private void YearButton_Click(object sender, RoutedEventArgs e) { _currentPeriod = Period.Year; RestoreNormalPeriods(); RefreshData(); }
 
-        // --- Botón Rango Custom ---
         private void CustomButton_Click(object sender, RoutedEventArgs e)
         {
             NormalPeriodContainer.Visibility = Visibility.Collapsed;
@@ -144,7 +181,6 @@ namespace Punto_de_Venta
                 _customStart = StartDatePicker.SelectedDate.Value;
                 _customEnd = EndDatePicker.SelectedDate.Value;
 
-                // Prevenir fechas invertidas
                 if (_customStart > _customEnd)
                 {
                     (_customStart, _customEnd) = (_customEnd, _customStart);
@@ -158,7 +194,6 @@ namespace Punto_de_Venta
 
         private void CancelCustomDate_Click(object sender, RoutedEventArgs e) => RestoreNormalPeriods();
 
-        // --- Navegación Izquierda ---
         private void NavFinanzas_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.Finanzas; RefreshData(); }
         private void NavMetodos_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.MetodosPago; RefreshData(); }
         private void NavCategorias_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.Categorias; RefreshData(); }
@@ -174,7 +209,6 @@ namespace Punto_de_Venta
             DateTime start = today;
             DateTime end = today;
 
-            // Determinar Rango de Fechas
             switch (_currentPeriod)
             {
                 case Period.Day: start = today; end = today; break;
@@ -184,7 +218,6 @@ namespace Punto_de_Venta
                 case Period.Custom: start = _customStart.Date; end = _customEnd.Date; break;
             }
 
-            // Filtrar Listas con el EndDate (<= end en vez de <= today)
             var selectedSales = _sales.Where(s => s.FechaHora.Date >= start && s.FechaHora.Date <= end).ToList();
             var selectedCortes = _cortes.Where(c => c.FechaHora.Date >= start && c.FechaHora.Date <= end).ToList();
 
@@ -199,7 +232,6 @@ namespace Punto_de_Venta
             var totalGastos = _movimientos.Where(m => m.FechaHora.Date >= start && m.FechaHora.Date <= end && (m.Tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase) || m.Tipo.Equals("Gasto", StringComparison.OrdinalIgnoreCase))).Sum(m => m.Monto);
             var balanceNeto = totalVentas - totalGastos;
 
-            // Actualizar Tarjetas (KPIs)
             KpiVentaTotal.Text = totalVentas.ToString("C2", _mexicanCulture);
             KpiCostoTotal.Text = totalCosto.ToString("C2", _mexicanCulture);
             KpiGananciaNeta.Text = totalGanancia.ToString("C2", _mexicanCulture);
@@ -210,7 +242,6 @@ namespace Punto_de_Venta
             KpiTicketPromedio.Text = $"Ticket prom: {ticketPromedio.ToString("C2", _mexicanCulture)}";
             KpiMargenPorcentaje.Text = $"Margen: {margenPct:F1}%";
 
-            // Estilos de Botones
             ActualizarEstiloBotonPeriodo(DayButton, _currentPeriod == Period.Day);
             ActualizarEstiloBotonPeriodo(WeekButton, _currentPeriod == Period.Week);
             ActualizarEstiloBotonPeriodo(MonthButton, _currentPeriod == Period.Month);
@@ -224,7 +255,6 @@ namespace Punto_de_Venta
             ActualizarEstiloBotonSidebar(NavRentabilidadBtn, _currentView == ChartView.Rentabilidad);
             ActualizarEstiloBotonSidebar(NavCortesBtn, _currentView == ChartView.CortesCaja);
 
-            // Alternar Visibilidad
             MainChartView.Visibility = Visibility.Collapsed;
             PieChartView.Visibility = Visibility.Collapsed;
             CortesContainerView.Visibility = Visibility.Collapsed;
@@ -348,36 +378,26 @@ namespace Punto_de_Venta
         }
         private void ExportarReporteDia_Click(object sender, RoutedEventArgs e)
         {
-            // 1. Tomar el último corte cerrado o el abierto actualmente
             var corte = _cortes.OrderByDescending(c => c.FechaHora).FirstOrDefault();
             if (corte == null)
             {
-                MessageBox.Show("No hay cortes registrados para exportar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                CustomMessageBox.Show("No hay cortes registrados para exportar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            // 2. Traer los movimientos de ese corte específico
             var movimientos = _movimientos.Where(m => m.CorteCajaId == corte.Id).ToList();
-
-            // 3. Capturar la gráfica como imagen (Cambia NombreDeTuGraficaEnXaml por el de tu XAML)
-            // Si tu gráfica de pastel se llama GraficaVentasPastel, ponlo ahí. Si no la necesitas, pon null.
             byte[] imagenGrafica = Reportes.ReporteDiarioPdf.CapturarElementoComoImagen(PieChartView);
-
-            // 4. Configurar rutas
-            string rutaLogo = @"C:\Ruta\Al\Logo.png"; // Puedes dejarlo vacío si aún no tienes logo
-
-            // Guardar en el escritorio
+            string rutaLogo = @"C:\Ruta\Al\Logo.png";
             string escritorio = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
             string rutaPdf = System.IO.Path.Combine(escritorio, $"Reporte_Turno_{corte.Id}_{DateTime.Now:dd_MM_yyyy_HHmm}.pdf");
 
-            // 5. Generar y abrir el PDF
             try
             {
                 Reportes.ReporteDiarioPdf.GenerarYabrir(corte, movimientos, rutaLogo, imagenGrafica, rutaPdf);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Error al generar el PDF: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                CustomMessageBox.Show($"Error al generar el PDF: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
         private void CargarTablaCortes(List<CorteCaja> cortes)
@@ -394,7 +414,6 @@ namespace Punto_de_Venta
                 else if (dif > 0m) { difTexto = $"+{dif.ToString("C2", _mexicanCulture)} Sobrante"; bgBrush = new SolidColorBrush(Color.FromArgb(30, 255, 149, 0)); fgBrush = new SolidColorBrush(Color.FromRgb(215, 120, 0)); }
                 else { difTexto = $"{dif.ToString("C2", _mexicanCulture)} Faltante"; bgBrush = new SolidColorBrush(Color.FromArgb(30, 255, 59, 48)); fgBrush = new SolidColorBrush(Color.FromRgb(215, 40, 30)); }
 
-                // AQUÍ ESTÁ EL CAMBIO: Pasamos c.Id en lugar de c.FechaHora al principio
                 CortesAuditoria.Add(new CorteAuditoriaItem(c.Id, c.FechaHora.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture), $"Turno #{c.Id}", c.TotalEsperado.ToString("C2", _mexicanCulture), c.TotalContado.ToString("C2", _mexicanCulture), difTexto, bgBrush, fgBrush));
             }
         }
@@ -427,7 +446,6 @@ namespace Punto_de_Venta
         {
             MovimientosDelTurnoList.Clear();
 
-            // Filtramos directamente por el ID del turno exacto
             var movimientos = _movimientos
                 .Where(m => m.CorteCajaId == turnoId)
                 .OrderBy(m => m.FechaHora)
@@ -474,7 +492,6 @@ namespace Punto_de_Venta
     }
 
     public sealed record TopProductoItem(int Posicion, string Nombre, int Cantidad, decimal Ingreso);
-    // Cambiamos TurnoId por FechaCorte
     public sealed record CorteAuditoriaItem(int TurnoId, string FechaHoraFormateada, string FolioTexto, string EsperadoFormateado, string ContadoFormateado, string DiferenciaFormateada, Brush BadgeBackground, Brush BadgeForeground);
     #endregion
 }

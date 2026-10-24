@@ -1,6 +1,7 @@
 ﻿using Punto_de_Venta.Datos;
 using Punto_de_Venta.Modelos;
 using Punto_de_Venta.Servicios;
+using Punto_de_Venta.Vistas;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -16,7 +17,7 @@ using System.Windows.Threading;
 
 namespace Punto_de_Venta
 {
-    public partial class Inventario : Window
+    public partial class Inventario : UserControl
     {
         #region Campos Privados y Colecciones
         private readonly DispatcherTimer _clockTimer;
@@ -28,24 +29,6 @@ namespace Punto_de_Venta
 
         public ObservableCollection<Producto> Products { get; } = [];
         public ICollectionView ProductsView { get; }
-        #endregion
-
-        #region Controles de Ventana
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
-
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
         #endregion
 
         #region Constructor e Inicialización
@@ -78,9 +61,15 @@ namespace Punto_de_Venta
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
-            Closed += (_, _) => _clockTimer.Stop();
 
-            // Optimización de Búsqueda: Debounce Timer para no saturar CPU al teclear
+            // Reemplazo del evento Closed de Window por Unloaded de UserControl
+            Unloaded += (_, _) =>
+            {
+                _clockTimer.Stop();
+                _searchDebounceTimer.Stop();
+            };
+
+            // Optimización de Búsqueda: Debounce Timer
             _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
             _searchDebounceTimer.Tick += (_, _) =>
             {
@@ -88,55 +77,59 @@ namespace Punto_de_Venta
                 ProductsView.Refresh();
             };
         }
-
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Focus();
+                Keyboard.Focus(this);
+                SearchBox?.Focus();
+            }
+        }
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             FocusCodeBox();
         }
         #endregion
 
         #region Eventos Principales y Atajos de Teclado
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            // Cerrar Modal de ReStock Rápido
-            if (QuickRestockOverlay.Visibility == Visibility.Visible)
+            if (e.Key == Key.Escape)
             {
-                if (e.Key == Key.Escape)
+                if (QuickRestockOverlay.Visibility == Visibility.Visible)
                 {
-                    CloseQuickRestock();
+                    CloseQuickRestock_Click(null, null);
                     e.Handled = true;
+                    return;
                 }
-                return;
+
+                this.Visibility = Visibility.Collapsed;
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RegresarAlMenu();
+                }
+                e.Handled = true;
             }
 
-            // Atajo F9: Imprimir Etiqueta
             if (e.Key == Key.F9)
             {
                 ImprimirEtiquetaSeleccionada();
                 e.Handled = true;
                 return;
             }
-            // Atajo Modificar: Shift + F
             if (e.Key == Key.F && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
             {
                 ModifyButton_Click(null, null);
                 e.Handled = true;
                 return;
             }
-            // Atajo Enlace Rápido: Ctrl + E
             if (e.Key == Key.E && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
                 BtnEnlaceRapido_Click(null, null);
                 e.Handled = true;
                 return;
             }
-            if (e.Key == Key.Escape)
-            {
-                Close();
-                e.Handled = true;
-                return;
-            }
-            // Atajo Buscador: Ctrl + F
             if (e.Key == Key.F && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
                 FocusSearch();
@@ -150,10 +143,9 @@ namespace Punto_de_Venta
         private void BtnEnlaceRapido_Click(object sender, RoutedEventArgs e)
         {
             var modal = new Vistas.EnlaceRapidoModal();
-            modal.Owner = this;
+            modal.Owner = Window.GetWindow(this);
             modal.ShowDialog();
 
-            // Recargar datos desde la base de datos para reflejar los nuevos códigos asignados
             try
             {
                 Products.Clear();
@@ -168,7 +160,6 @@ namespace Punto_de_Venta
 
         private void ImprimirEtiquetaSeleccionada()
         {
-            // 1. Validar selección usando _selectedProduct o ProductGrid.SelectedItem
             var producto = _selectedProduct ?? ProductGrid.SelectedItem as Producto;
 
             if (producto == null)
@@ -177,7 +168,6 @@ namespace Punto_de_Venta
                 return;
             }
 
-            // 2. Verificar que exista una impresora térmica configurada en Ajustes
             var config = AppConfig.Load();
             if (string.IsNullOrWhiteSpace(config.ImpresoraSeleccionada))
             {
@@ -185,14 +175,12 @@ namespace Punto_de_Venta
                 return;
             }
 
-            // 3. Tomar código de barras existente o usar el ID numérico interno
             string codigoBarras = !string.IsNullOrWhiteSpace(producto.Codigo)
                 ? producto.Codigo.Trim()
                 : producto.Id.ToString(CultureInfo.InvariantCulture);
 
             try
             {
-                // 4. Generar bytes nativos ESC/POS (Code 128)
                 byte[] buffer = EtiquetaPrinter.GenerarBytesEtiqueta(
                     config.NombreNegocio,
                     producto.Nombre,
@@ -201,7 +189,6 @@ namespace Punto_de_Venta
                     copias: 1
                 );
 
-                // 5. Enviar directamente al Spooler de Windows en modo RAW
                 bool impreso = RawPrinterHelper.SendBytesToPrinter(config.ImpresoraSeleccionada, buffer);
 
                 if (impreso)
@@ -440,7 +427,7 @@ namespace Punto_de_Venta
                 Precio = price,
                 Stock = stock,
                 PedirCantidadAlCobrar = AskQuantityCheckBox?.IsChecked == true,
-                SeVendePorPeso = ScaleWeighCheckBox?.IsChecked == true // NUEVA LÍNEA
+                SeVendePorPeso = ScaleWeighCheckBox?.IsChecked == true
             };
 
             var updatedProducts = Products.Append(newProduct).ToList();
@@ -469,7 +456,9 @@ namespace Punto_de_Venta
 
             var productToDelete = _selectedProduct;
 
-            var confirm = MessageBox.Show(this,
+            // 1. Alertamos usando el MainWindow como dueño de la ventana (para evitar el error de UserControl)
+            var window = Window.GetWindow(this) ?? Application.Current.MainWindow;
+            var confirm = CustomMessageBox.Show(window,
                 $"¿Seguro que deseas eliminar '{productToDelete.Nombre}' del inventario?",
                 "Confirmar Eliminación",
                 MessageBoxButton.YesNo,
@@ -480,18 +469,23 @@ namespace Punto_de_Venta
                 return;
             }
 
-            var updatedProducts = Products.Where(product => product.Id != productToDelete.Id).ToList();
-            if (!TrySave(updatedProducts))
+            try
             {
-                return;
+                // 2. Ordenamos a la base de datos que borre específicamente este ID
+                Punto_de_Venta.Datos.ProductoDB.Delete(productToDelete.Id);
+
+                // 3. Lo quitamos de la memoria visual
+                Products.Remove(productToDelete);
+                ClearSelectionAndForm();
+                UpdateProductCount();
+                FocusCodeBox();
+
+                ToastNotification.Show($"Producto '{productToDelete.Nombre}' eliminado", ToastType.Success);
             }
-
-            Products.Remove(productToDelete);
-            ClearSelectionAndForm();
-            UpdateProductCount();
-            FocusCodeBox();
-
-            ToastNotification.Show($"Producto '{productToDelete.Nombre}' eliminado", ToastType.Success);
+            catch (Exception ex)
+            {
+                ToastNotification.Show($"Error al eliminar de la base de datos: {ex.Message}", ToastType.Error);
+            }
         }
 
         private void ModifyButton_Click(object sender, RoutedEventArgs e)
@@ -524,7 +518,7 @@ namespace Punto_de_Venta
                 Precio = price,
                 Stock = stock,
                 PedirCantidadAlCobrar = AskQuantityCheckBox?.IsChecked == true,
-                SeVendePorPeso = ScaleWeighCheckBox?.IsChecked == true // NUEVA LÍNEA
+                SeVendePorPeso = ScaleWeighCheckBox?.IsChecked == true
             };
 
             var updatedProducts = Products.Select(product => product.Id == oldProduct.Id ? updatedProduct : product).ToList();
@@ -756,6 +750,7 @@ namespace Punto_de_Venta
             QuickRestockOverlay.Visibility = Visibility.Collapsed;
             FocusCodeBox();
         }
+
         private void QuickRestock_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedProduct is null || sender is not Button btn || btn.Tag is not string amountStr)
@@ -783,6 +778,7 @@ namespace Punto_de_Venta
                 ToastNotification.Show($"Error al guardar reabastecimiento: {ex.Message}", ToastType.Error);
             }
         }
+
         private void QrScanCodeBox_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key != Key.Enter) return;

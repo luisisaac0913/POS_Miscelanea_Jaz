@@ -2,6 +2,7 @@
 using Punto_de_Venta.Datos;
 using Punto_de_Venta.Modelos;
 using Punto_de_Venta.Servicios;
+using Punto_de_Venta.Vistas;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -15,14 +16,12 @@ using System.Windows.Threading;
 
 namespace Punto_de_Venta
 {
-    /// <summary>
-    /// Lógica de interacción para MainWindow.xaml
-    /// </summary>
     public partial class MainWindow : Window
     {
-        private bool _isPagina1Visible = true;
         private readonly DispatcherTimer _clockTimer;
         private bool _isShuttingDown;
+
+        private readonly Dictionary<string, UserControl> _vistasCache = new Dictionary<string, UserControl>();
 
         public MainWindow()
         {
@@ -57,56 +56,47 @@ namespace Punto_de_Venta
             UpdateClock();
             _clockTimer.Start();
         }
-        private void CodigosDeBarras_Click(object sender, RoutedEventArgs e)
+
+        private void AbrirVista<T>() where T : UserControl, new()
         {
-            var ventanaCodigos = new CodigosBarrasWindow();
+            string nombreVista = typeof(T).Name;
 
-            // 1. Heredar el estado exacto (Maximizado o Normal) y dimensiones del menú actual
-            ventanaCodigos.WindowState = this.WindowState;
-            if (this.WindowState == WindowState.Normal)
+            if (!_vistasCache.ContainsKey(nombreVista))
             {
-                ventanaCodigos.Top = this.Top;
-                ventanaCodigos.Left = this.Left;
-                ventanaCodigos.Width = this.Width;
-                ventanaCodigos.Height = this.Height;
+                _vistasCache[nombreVista] = new T();
             }
 
-            // 2. Ocultar el menú principal (para que solo quede una ventana visible)
-            this.Hide();
+            // REPARACIÓN DEL PANTALLAZO EN BLANCO: 
+            // Forzar que el UserControl vuelva a ser visible, ya que el evento ESC lo oculta internamente.
+            _vistasCache[nombreVista].Visibility = Visibility.Visible;
 
-            // 3. Mostrar el módulo de códigos de barras
-            ventanaCodigos.ShowDialog();
+            GridDashboard.Visibility = Visibility.Collapsed;
+            ContenedorVistas.Content = _vistasCache[nombreVista];
+            ContenedorVistas.Visibility = Visibility.Visible;
 
-            // 4. Al cerrar el módulo, recuperar el estado/tamaño por si el usuario lo movió, y volver a mostrar el menú
-            this.WindowState = ventanaCodigos.WindowState;
-            if (ventanaCodigos.WindowState == WindowState.Normal)
-            {
-                this.Top = ventanaCodigos.Top;
-                this.Left = ventanaCodigos.Left;
-                this.Width = ventanaCodigos.Width;
-                this.Height = ventanaCodigos.Height;
-            }
-            this.Show();
+            // Foco retardado para asegurar que la vista activa reciba los eventos del teclado
+            Dispatcher.BeginInvoke(new Action(() => {
+                _vistasCache[nombreVista].Focus();
+            }), DispatcherPriority.Loaded);
         }
-        private void BtnPaginacion_Click(object sender, RoutedEventArgs e)
+
+        public void RegresarAlMenu()
         {
-            _isPagina1Visible = !_isPagina1Visible;
+            // 1. Ocultar y limpiar el contenedor de la vista modular
+            ContenedorVistas.Visibility = Visibility.Collapsed;
+            ContenedorVistas.Content = null;
 
-            if (_isPagina1Visible)
+            // 2. Volver a mostrar el panel de inicio (Dashboard Bento)
+            if (GridDashboard != null)
             {
-                ShortcutGridPagina1.Visibility = Visibility.Visible;
-                ShortcutGridPagina2.Visibility = Visibility.Collapsed;
-
-                IconoPaginacion.Text = "→";
+                GridDashboard.Visibility = Visibility.Visible;
             }
-            else
-            {
-                ShortcutGridPagina1.Visibility = Visibility.Collapsed;
-                ShortcutGridPagina2.Visibility = Visibility.Visible;
 
-                IconoPaginacion.Text = "←";
-            }
+            // 3. Devolver el foco a la ventana principal
+            this.Focus();
+            Keyboard.Focus(this);
         }
+
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
             if (e.ClickCount == 2)
@@ -139,153 +129,99 @@ namespace Punto_de_Venta
             }
         }
 
-        // Navegación a Módulos Principales
-        private void Cobro_Click(object sender, RoutedEventArgs e) => ShowSection(new Cobro());
+        private void Cobro_Click(object sender, RoutedEventArgs e) => AbrirVista<Cobro>();
+        private void Prestamos_Click(object sender, RoutedEventArgs e) => AbrirVista<Prestamos>();
+        private void CodigosDeBarras_Click(object sender, RoutedEventArgs e) => AbrirVista<CodigosBarrasWindow>();
 
         private void Inventario_Click(object sender, RoutedEventArgs e)
         {
-            if (SolicitarAutorizacion())
-            {
-                ShowSection(new Inventario());
-            }
+            if (SolicitarAutorizacion()) AbrirVista<Inventario>();
         }
 
         private void Ventas_Click(object sender, RoutedEventArgs e)
         {
-            if (SolicitarAutorizacion())
-            {
-                ShowSection(new Ventas());
-            }
+            if (SolicitarAutorizacion()) AbrirVista<Ventas>();
         }
-
-        private void Prestamos_Click(object sender, RoutedEventArgs e) => ShowSection(new Prestamos());
 
         private void Graficas_Click(object sender, RoutedEventArgs e)
         {
-            if (SolicitarAutorizacion())
-            {
-                ShowSection(new Graficas());
-            }
+            if (SolicitarAutorizacion()) AbrirVista<Graficas>();
         }
 
         private void Configuracion_Click(object sender, RoutedEventArgs e)
         {
-            if (SolicitarAutorizacion())
-            {
-                ShowSection(new Configuracion());
-            }
+            if (SolicitarAutorizacion()) AbrirVista<Configuracion>();
         }
 
-        private void Actualizar_Click(object sender, RoutedEventArgs e) => Configuracion_Click(sender, e);
-
-        // ■ NUEVO: Apertura de la ventana de Promociones protegida con PIN
         private void Promociones_Click(object sender, RoutedEventArgs e)
         {
-            if (SolicitarAutorizacion())
-            {
-                ShowSection(new Promociones());
-            }
+            if (SolicitarAutorizacion()) AbrirVista<Promociones>();
         }
 
-        private void ShowSection(Window section)
-        {
-            var isMaximized = WindowState == WindowState.Maximized;
-            section.Owner = this;
-
-            if (isMaximized)
-            {
-                section.WindowState = WindowState.Maximized;
-            }
-            else
-            {
-                section.WindowStartupLocation = WindowStartupLocation.Manual;
-                section.Left = Left;
-                section.Top = Top;
-                section.Width = Width;
-                section.Height = Height;
-                section.WindowState = WindowState.Normal;
-            }
-
-            Hide();
-
-            try
-            {
-                section.ShowDialog();
-            }
-            finally
-            {
-                if (section.WindowState == WindowState.Maximized)
-                {
-                    WindowState = WindowState.Maximized;
-                }
-                else
-                {
-                    WindowState = WindowState.Normal;
-                    Left = section.Left;
-                    Top = section.Top;
-                    Width = section.Width;
-                    Height = section.Height;
-                }
-
-                Show();
-                Activate();
-                Focus();
-            }
-        }
-        #region Bindeo de teclas
         private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (ExportarOverlay.Visibility == Visibility.Visible)
+            // REPARACIÓN CLAVE DEL ESC: Si el modal de exportar está abierto, lo cierra.
+            if (ExportarOverlay != null && ExportarOverlay.Visibility == Visibility.Visible)
             {
+                if (e.Key == Key.Escape)
+                {
+                    CerrarExportar();
+                    e.Handled = true;
+                }
                 return;
             }
 
+            // REPARACIÓN CLAVE DEL ESC: Si un módulo está abierto, dejamos que el UserControl 
+            // y sus modales internos manejen el ESC por sí mismos.
+            if (ContenedorVistas.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    // Dejamos pasar el evento para que llegue al UserControl activo
+                    return;
+                }
+                // Retornamos para evitar que estando dentro de un módulo, presiones teclas del menú general.
+                return;
+            }
+
+            // Atajos directos desde el menú de inicio
             switch (e.Key)
             {
                 case Key.D1:
                     Cobro_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
-
                 case Key.D2:
                     Ventas_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
-
                 case Key.D3:
                     Inventario_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
-
                 case Key.D4:
                     Prestamos_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
-
                 case Key.D5:
                     Graficas_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
-
                 case Key.D6:
                     Configuracion_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
-
                 case Key.D7:
                     Exportar_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
-
-                // Atajo 8 para abrir Promociones directamente desde teclado
                 case Key.D8:
                     Promociones_Click(this, new RoutedEventArgs());
                     e.Handled = true;
                     break;
             }
         }
-#endregion
-        #region Importación y Carga de Catálogo
+
         private void BtnSubirLista_Click(object sender, RoutedEventArgs e)
         {
             var openFileDialog = new OpenFileDialog
@@ -298,15 +234,11 @@ namespace Punto_de_Venta
 
             try
             {
-                // 1. Leer las líneas del archivo seleccionado por el usuario
                 var lineasNuevas = File.ReadAllLines(openFileDialog.FileName, Encoding.UTF8);
-
-                // 2. Cargar el catálogo actual directamente desde SQLite para no perder IDs previos
-                var productosExistentes = Punto_de_Venta.Datos.ProductoDB.Load();
+                var productosExistentes = ProductoDB.Load();
                 var catalogoPorId = productosExistentes.ToDictionary(p => p.Id);
 
                 int maxId = catalogoPorId.Keys.DefaultIfEmpty(0).Max();
-
                 int importadosCount = 0;
 
                 foreach (var linea in lineasNuevas)
@@ -315,10 +247,8 @@ namespace Punto_de_Venta
                     var prod = ParsearLineaProducto(linea);
                     if (prod == null) continue;
 
-                    // Si el ID viene en 0 o no existe, generamos un ID autoincremental seguro
                     if (prod.Id <= 0 || !catalogoPorId.ContainsKey(prod.Id))
                     {
-                        // Si el código ya existe, actualizamos en lugar de duplicar
                         var existentePorCodigo = catalogoPorId.Values.FirstOrDefault(p => !string.IsNullOrEmpty(p.Codigo) && p.Codigo == prod.Codigo);
                         if (existentePorCodigo != null)
                         {
@@ -334,16 +264,12 @@ namespace Punto_de_Venta
                     }
                     else
                     {
-                        // Actualizar el producto existente con los datos nuevos del txt
                         catalogoPorId[prod.Id] = prod;
                     }
-
                     importadosCount++;
                 }
 
-                // 3. Guardar todo el catálogo actualizado DIRECTAMENTE A LA BASE DE DATOS SQLITE
-                Punto_de_Venta.Datos.ProductoDB.Save(catalogoPorId.Values);
-
+                ProductoDB.Save(catalogoPorId.Values);
                 ToastNotification.Show($"Se importaron y guardaron {importadosCount} productos en SQLite correctamente", ToastType.Success);
             }
             catch (Exception ex)
@@ -363,12 +289,9 @@ namespace Punto_de_Venta
             if (string.IsNullOrWhiteSpace(nombre)) return null;
 
             var categoria = "N/A";
-            decimal costo = 0m;
-            decimal ganancia = 0m;
-            decimal precio = 0m;
+            decimal costo = 0m, ganancia = 0m, precio = 0m;
             int stock = 0;
-            bool pedirCantidad = false;
-            bool seVendePorPeso = false; // NUEVO SOPORTE PARA EL ÚLTIMO CAMPO BOOLEANO
+            bool pedirCantidad = false, seVendePorPeso = false;
 
             if (partes.Length >= 10)
             {
@@ -452,8 +375,7 @@ namespace Punto_de_Venta
             }
             return 0m;
         }
-        #endregion
-        #region Módulo de Exportación de Reportes
+
         private void Exportar_Click(object sender, RoutedEventArgs e)
         {
             if (FindName("ExportarOverlay") is Grid overlay)
@@ -486,15 +408,11 @@ namespace Punto_de_Venta
             {
                 var hoy = DateTime.Today;
                 var inicioSemana = hoy.AddDays(-6);
-
-                var sales = VentaDB.Load()
-                    .Where(sale =>
-                    {
-                        var fechaLocal = sale.FechaHora.ToLocalTime().Date;
-                        return sale.Estado != "Cancelada" && fechaLocal >= inicioSemana && fechaLocal <= hoy;
-                    })
-                    .ToList();
-
+                var sales = VentaDB.Load().Where(sale =>
+                {
+                    var fechaLocal = sale.FechaHora.ToLocalTime().Date;
+                    return sale.Estado != "Cancelada" && fechaLocal >= inicioSemana && fechaLocal <= hoy;
+                }).ToList();
                 ExportarArchivo("Reporte_Ventas_Semana.txt", CrearReporteVentas(sales));
             }
             catch (Exception exception)
@@ -505,26 +423,14 @@ namespace Punto_de_Venta
 
         private void ExportarProductos_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                ExportarArchivo("Catalogo_Productos.txt", CrearReporteProductos(ProductoDB.Load()));
-            }
-            catch (Exception exception)
-            {
-                MostrarErrorExportacion(exception);
-            }
+            try { ExportarArchivo("Catalogo_Productos.txt", CrearReporteProductos(ProductoDB.Load())); }
+            catch (Exception exception) { MostrarErrorExportacion(exception); }
         }
 
         private void ExportarPrestamos_Click(object sender, RoutedEventArgs e)
         {
-            try
-            {
-                ExportarArchivo("Libreta_Prestamos.txt", CrearReportePrestamos(PrestamoDB.Load()));
-            }
-            catch (Exception exception)
-            {
-                MostrarErrorExportacion(exception);
-            }
+            try { ExportarArchivo("Libreta_Prestamos.txt", CrearReportePrestamos(PrestamoDB.Load())); }
+            catch (Exception exception) { MostrarErrorExportacion(exception); }
         }
 
         private void ExportarArchivo(string suggestedName, string content)
@@ -537,7 +443,6 @@ namespace Punto_de_Venta
                 AddExtension = true,
                 FileName = suggestedName
             };
-
             try
             {
                 if (dialog.ShowDialog(this) == true)
@@ -561,13 +466,11 @@ namespace Punto_de_Venta
             var culture = CultureInfo.GetCultureInfo("es-MX");
             var today = DateTime.Today;
             var weekStart = today.AddDays(-6);
-            var weeklySales = sales
-                .Where(sale =>
-                {
-                    var localDate = sale.FechaHora.ToLocalTime().Date;
-                    return sale.Estado != "Cancelada" && localDate >= weekStart && localDate <= today;
-                })
-                .ToList();
+            var weeklySales = sales.Where(sale =>
+            {
+                var localDate = sale.FechaHora.ToLocalTime().Date;
+                return sale.Estado != "Cancelada" && localDate >= weekStart && localDate <= today;
+            }).ToList();
 
             var report = new StringBuilder();
             report.AppendLine("            RESUMEN DE SEMANA");
@@ -589,7 +492,6 @@ namespace Punto_de_Venta
                 report.AppendLine("     Productos vendidos:");
 
                 var itemsDelDia = new List<(string Nombre, int Cantidad, decimal Subtotal)>();
-
                 foreach (var sale in dailySales)
                 {
                     if (sale.Productos.Count > 0)
@@ -601,22 +503,13 @@ namespace Punto_de_Venta
                         foreach (var part in sale.ProductosResumen.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries))
                         {
                             var match = System.Text.RegularExpressions.Regex.Match(part, @"^(?<name>.+?)\s+x(?<qty>\d+)$");
-                            if (match.Success)
-                            {
-                                itemsDelDia.Add((match.Groups["name"].Value.Trim(), int.Parse(match.Groups["qty"].Value), 0m));
-                            }
-                            else
-                            {
-                                itemsDelDia.Add((part.Trim(), 1, 0m));
-                            }
+                            if (match.Success) itemsDelDia.Add((match.Groups["name"].Value.Trim(), int.Parse(match.Groups["qty"].Value), 0m));
+                            else itemsDelDia.Add((part.Trim(), 1, 0m));
                         }
                     }
                 }
 
-                var agrupados = itemsDelDia
-                    .GroupBy(i => i.Nombre, StringComparer.OrdinalIgnoreCase)
-                    .OrderBy(g => g.Key);
-
+                var agrupados = itemsDelDia.GroupBy(i => i.Nombre, StringComparer.OrdinalIgnoreCase).OrderBy(g => g.Key);
                 foreach (var g in agrupados)
                 {
                     var cant = g.Sum(x => x.Cantidad);
@@ -625,15 +518,10 @@ namespace Punto_de_Venta
                     report.AppendLine($"        - {g.Key} (x{cant}){precioStr}");
                 }
 
-                if (!itemsDelDia.Any())
-                {
-                    report.AppendLine("        (Sin ventas registradas)");
-                }
-
+                if (!itemsDelDia.Any()) report.AppendLine("        (Sin ventas registradas)");
                 report.AppendLine($"     Total del día: {dailyTotal.ToString("C2", culture)} | Ganancia del día: {dailyProfit.ToString("C2", culture)}");
                 report.AppendLine("======================================");
             }
-
             report.AppendLine($"GRAN TOTAL SEMANAL: {totalWeek.ToString("C2", culture)}");
             report.AppendLine($"GANANCIA TOTAL SEMANAL: {totalProfitWeek.ToString("C2", culture)}");
             report.AppendLine("--------------------------------------");
@@ -649,13 +537,11 @@ namespace Punto_de_Venta
             report.AppendLine("###########################################################################################");
             report.AppendLine("ID   | CÓDIGO         | NOMBRE                        | STOCK | COSTO     | GANANCIA  | PRECIO");
             report.AppendLine("-------------------------------------------------------------------------------------------");
-
             foreach (var product in productList)
             {
                 report.AppendLine($"{product.Id,-4} | {product.Codigo,-14} | {product.Nombre,-29} | {product.Stock,-5} | {product.Costo.ToString("C2", culture),-9} | {product.Ganancia.ToString("C2", culture),-9} | {product.Precio.ToString("C2", culture)}");
                 report.AppendLine("-------------------------------------------------------------------------------------------");
             }
-
             report.AppendLine("===========================================================================================");
             report.AppendLine($"Total de productos registrados: {productList.Count}");
             return report.ToString();
@@ -677,7 +563,6 @@ namespace Punto_de_Venta
                 report.AppendLine($"Estado: {(debtor.EstaSaldada ? "SALDADA" : "PENDIENTE")}");
                 report.AppendLine("----------------------------------------------------------------------");
             }
-
             report.AppendLine("======================================================================");
             report.AppendLine($"TOTAL SALDO PENDIENTE POR COBRAR: {debtorList.Sum(debtor => debtor.SaldoRestante).ToString("C2", culture)}");
             return report.ToString();
@@ -691,26 +576,15 @@ namespace Punto_de_Venta
 
         private void CerrarExportar()
         {
-            if (FindName("ExportarOverlay") is Grid overlay)
-            {
-                overlay.Visibility = Visibility.Collapsed;
-            }
+            if (FindName("ExportarOverlay") is Grid overlay) overlay.Visibility = Visibility.Collapsed;
         }
-        #endregion
+
         private bool SolicitarAutorizacion()
         {
-            // 1. Verificamos si el administrador decidió desactivar el PIN
             var config = AppConfig.Load();
-            if (!config.SolicitarPinAdmin)
-            {
-                return true; // Acceso libre e inmediato sin abrir la ventana
-            }
+            if (!config.SolicitarPinAdmin) return true;
 
-            // 2. Si el PIN sigue activado, mostramos el modal como siempre
-            var modal = new AutorizacionModal
-            {
-                Owner = this
-            };
+            var modal = new AutorizacionModal { Owner = this };
             modal.ShowDialog();
             return modal.Autorizado;
         }

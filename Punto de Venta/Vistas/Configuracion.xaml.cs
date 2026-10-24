@@ -13,39 +13,44 @@ using System.Windows.Media;
 
 namespace Punto_de_Venta
 {
-    public partial class Configuracion : Window
+    public partial class Configuracion : UserControl
     {
         #region Campos Privados
         private AppConfig _config = new();
         private bool _isTestingScale = false;
-        private string _selectedColorHex = "#007AFF"; // Valor por defecto
+        private string _selectedColorHex = "#007AFF";
         #endregion
 
-        #region Inicialización y Constructor
         public Configuracion()
         {
             InitializeComponent();
             Loaded += Configuracion_Loaded;
         }
 
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Focus();
+                Keyboard.Focus(this);
+            }
+        }
+
         private async void Configuracion_Loaded(object sender, RoutedEventArgs e)
         {
             CargarDatosFormulario();
             await CargarDispositivosAsync();
+            this.Focus();
         }
-        #endregion
 
-        #region Carga y Mapeo de Datos al Formulario
         private void CargarDatosFormulario()
         {
             _config = AppConfig.Load();
             WhatsAppTemplateBox.Text = _config.MensajeWhatsAppRecordatorio ?? string.Empty;
 
-            // Cargar Color de Acento y aplicarlo a la vista previa
             _selectedColorHex = _config.ColorAcentoHex ?? "#007AFF";
             CambiarColorAcentoLocally(_selectedColorHex);
 
-            // Ancho de papel
             foreach (ComboBoxItem item in PaperWidthComboBox.Items)
             {
                 if (item.Tag?.ToString() == _config.AnchoTicketCaracteres.ToString())
@@ -55,34 +60,22 @@ namespace Punto_de_Venta
                 }
             }
             if (PaperWidthComboBox.SelectedItem == null && PaperWidthComboBox.Items.Count > 0)
-            {
                 PaperWidthComboBox.SelectedIndex = 0;
-            }
 
-            // Datos del ticket
             BusinessNameBox.Text = _config.NombreNegocio ?? string.Empty;
             BusinessSubtitleBox.Text = _config.GiroNegocio ?? string.Empty;
             BusinessAddressBox.Text = _config.DireccionNegocio ?? string.Empty;
             FooterMessageBox.Text = _config.MensajePie ?? string.Empty;
 
-            // Personalización
             DarkModeCheckBox.IsChecked = _config.ModoOscuro;
-
-            // Impresión y respaldos
             AskBeforePrintCheckBox.IsChecked = _config.PreguntarAntesDeImprimir;
             AutoPrintCheckBox.IsChecked = _config.ImprimirTicketAutomatico;
 
             if (NoPrintOrSaveCheckBox != null)
-            {
                 NoPrintOrSaveCheckBox.IsChecked = !_config.PreguntarAntesDeImprimir && !_config.ImprimirTicketAutomatico;
-            }
 
             BackupFolderBox.Text = _config.RutaRespaldos ?? string.Empty;
-
-            // Seguridad de PIN
             RequirePinCheckBox.IsChecked = _config.SolicitarPinAdmin;
-
-            // Báscula digital
             EnableScaleCheckBox.IsChecked = _config.BasculaHabilitada;
 
             foreach (ComboBoxItem item in ScaleBaudRateComboBox.Items)
@@ -94,9 +87,7 @@ namespace Punto_de_Venta
                 }
             }
             if (ScaleBaudRateComboBox.SelectedItem == null && ScaleBaudRateComboBox.Items.Count > 0)
-            {
                 ScaleBaudRateComboBox.SelectedIndex = 0;
-            }
 
             foreach (ComboBoxItem item in ScaleProtocolComboBox.Items)
             {
@@ -109,15 +100,11 @@ namespace Punto_de_Venta
                 }
             }
             if (ScaleProtocolComboBox.SelectedItem == null && ScaleProtocolComboBox.Items.Count > 0)
-            {
                 ScaleProtocolComboBox.SelectedIndex = 0;
-            }
 
             ActualizarVistaPreviaTicket();
         }
-        #endregion
 
-        #region Color de Acento Dinámico
         private void ColorButton_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string hexColor)
@@ -133,42 +120,29 @@ namespace Punto_de_Venta
             {
                 var color = (Color)ColorConverter.ConvertFromString(codigoHexadecimal);
                 var nuevaBrocha = new SolidColorBrush(color);
-                nuevaBrocha.Freeze(); // Crucial para rendimiento en WPF
+                nuevaBrocha.Freeze();
 
-                // 1. FORZAR ACTUALIZACIÓN EN DICCIONARIOS DE TEMAS (La clave del problema)
-                // Esto obliga a WPF a notificar a todos los DynamicResource de la aplicación al instante.
                 foreach (var dict in Application.Current.Resources.MergedDictionaries)
                 {
                     if (dict.Contains("ThemeAccent"))
-                    {
                         dict["ThemeAccent"] = nuevaBrocha;
-                    }
                 }
 
-                // 2. Aplicar a nivel raíz general
                 Application.Current.Resources["ThemeAccent"] = nuevaBrocha;
-
-                // 3. Forzar en la ventana actual para respuesta inmediata
                 this.Resources["ThemeAccent"] = nuevaBrocha;
             }
-            catch
-            {
-                // Ignorar si el formato hexadecimal es incorrecto
-            }
+            catch { }
         }
 
         private void RevertirColorSiNoSeGuardo()
         {
-            // Si el usuario sale sin darle a "Guardar", devolvemos el sistema al color original
             string colorGuardado = _config.ColorAcentoHex ?? "#007AFF";
             if (_selectedColorHex != colorGuardado)
             {
                 CambiarColorAcentoLocally(colorGuardado);
             }
         }
-        #endregion
 
-        #region Detección de Hardware (Impresoras y Puertos COM)
         private async Task CargarDispositivosAsync()
         {
             PrintersComboBox.Items.Clear();
@@ -179,33 +153,19 @@ namespace Punto_de_Venta
             var listaImpresoras = await Task.Run(() =>
             {
                 var resultado = new List<string>();
-                try
-                {
-                    foreach (string printer in PrinterSettings.InstalledPrinters)
-                    {
-                        resultado.Add(printer);
-                    }
-                }
-                catch { }
+                try { foreach (string printer in PrinterSettings.InstalledPrinters) resultado.Add(printer); } catch { }
                 return resultado;
             });
 
             PrintersComboBox.Items.Clear();
             PrintersComboBox.Items.Add("(Ninguna / Desactivada)");
-            foreach (var printer in listaImpresoras)
-            {
-                PrintersComboBox.Items.Add(printer);
-            }
+            foreach (var printer in listaImpresoras) PrintersComboBox.Items.Add(printer);
             PrintersComboBox.IsEnabled = true;
 
             if (!string.IsNullOrEmpty(_config.ImpresoraSeleccionada) && PrintersComboBox.Items.Contains(_config.ImpresoraSeleccionada))
-            {
                 PrintersComboBox.SelectedItem = _config.ImpresoraSeleccionada;
-            }
             else
-            {
                 PrintersComboBox.SelectedIndex = 0;
-            }
 
             CargarPuertosSerie();
         }
@@ -215,19 +175,12 @@ namespace Punto_de_Venta
             ScalePortComboBox.Items.Clear();
             var puertos = BasculaService.ObtenerPuertosDisponibles();
 
-            foreach (var p in puertos)
-            {
-                ScalePortComboBox.Items.Add(p);
-            }
+            foreach (var p in puertos) ScalePortComboBox.Items.Add(p);
 
             if (ScalePortComboBox.Items.Contains(_config.BasculaPuerto))
-            {
                 ScalePortComboBox.SelectedItem = _config.BasculaPuerto;
-            }
             else if (ScalePortComboBox.Items.Count > 0)
-            {
                 ScalePortComboBox.SelectedIndex = 0;
-            }
             else
             {
                 ScalePortComboBox.Items.Add("COM1");
@@ -240,9 +193,7 @@ namespace Punto_de_Venta
             CargarPuertosSerie();
             ToastNotification.Show("Puertos COM actualizados", ToastType.Info);
         }
-        #endregion
 
-        #region Pruebas de Báscula
         private async void TestScale_Click(object sender, RoutedEventArgs e)
         {
             if (_isTestingScale) return;
@@ -250,9 +201,7 @@ namespace Punto_de_Venta
             var puerto = ScalePortComboBox.SelectedItem?.ToString() ?? "COM1";
             var baudRate = 9600;
             if (ScaleBaudRateComboBox.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out var b))
-            {
                 baudRate = b;
-            }
 
             _isTestingScale = true;
             ScaleTestResultText.Text = "Conectando y leyendo báscula...";
@@ -279,9 +228,7 @@ namespace Punto_de_Venta
                 ToastNotification.Show($"Error en báscula: {error}", ToastType.Error);
             }
         }
-        #endregion
 
-        #region Navegación y Paneles Laterales
         private void NavImpresion_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelImpresion, true);
         private void NavPersonalizacion_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelPersonalizacion, false);
         private void NavBascula_Click(object sender, RoutedEventArgs e) => MostrarPanel(PanelBascula, false);
@@ -324,9 +271,7 @@ namespace Punto_de_Venta
                 btn.SetResourceReference(Button.ForegroundProperty, "ThemeTextForeground");
             }
         }
-        #endregion
 
-        #region Vista Previa del Ticket
         private void TicketField_TextChanged(object sender, TextChangedEventArgs e) => ActualizarVistaPreviaTicket();
         private void PaperWidthComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e) => ActualizarVistaPreviaTicket();
 
@@ -336,9 +281,7 @@ namespace Punto_de_Venta
 
             int cols = 32;
             if (PaperWidthComboBox.SelectedItem is ComboBoxItem item && int.TryParse(item.Tag?.ToString(), out int parsedCols))
-            {
                 cols = parsedCols;
-            }
 
             var tempConfig = new AppConfig
             {
@@ -351,9 +294,7 @@ namespace Punto_de_Venta
 
             PreviewTicketText.Text = TicketService.GenerarTicketMuestra(tempConfig);
         }
-        #endregion
 
-        #region Acciones y Persistencia (Guardar Configuración)
         private void BrowseBackupFolder_Click(object sender, RoutedEventArgs e)
         {
             try
@@ -364,7 +305,7 @@ namespace Punto_de_Venta
                     Multiselect = false
                 };
 
-                if (dialog.ShowDialog(this) == true)
+                if (dialog.ShowDialog(Window.GetWindow(this)) == true)
                 {
                     string rutaSeleccionada = dialog.FolderName;
                     if (!Directory.Exists(rutaSeleccionada)) Directory.CreateDirectory(rutaSeleccionada);
@@ -409,9 +350,7 @@ namespace Punto_de_Venta
                 _config.ImpresoraSeleccionada = (printerSel.StartsWith("(") || printerSel.StartsWith("Cargando")) ? string.Empty : printerSel;
 
                 if (PaperWidthComboBox.SelectedItem is ComboBoxItem wItem && int.TryParse(wItem.Tag?.ToString(), out var width))
-                {
                     _config.AnchoTicketCaracteres = width;
-                }
 
                 _config.NombreNegocio = BusinessNameBox.Text.Trim();
                 _config.GiroNegocio = BusinessSubtitleBox.Text.Trim();
@@ -420,22 +359,15 @@ namespace Punto_de_Venta
 
                 var modoOscuroSeleccionado = DarkModeCheckBox.IsChecked == true;
                 _config.ModoOscuro = modoOscuroSeleccionado;
-
-                // Guardar Color de Acento
                 _config.ColorAcentoHex = _selectedColorHex;
-
-                // Guardar la opción del PIN
                 _config.SolicitarPinAdmin = RequirePinCheckBox.IsChecked == true;
 
                 _config.BasculaHabilitada = EnableScaleCheckBox.IsChecked == true;
                 _config.BasculaPuerto = ScalePortComboBox.SelectedItem?.ToString() ?? "COM1";
                 if (ScaleBaudRateComboBox.SelectedItem is ComboBoxItem baudItem && int.TryParse(baudItem.Tag?.ToString(), out var baud))
-                {
                     _config.BasculaBaudRate = baud;
-                }
                 _config.BasculaProtocolo = (ScaleProtocolComboBox.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Torrey / Rhino (Petición P)";
 
-                // Lógica de exclusividad para impresión
                 bool noPrintSave = NoPrintOrSaveCheckBox?.IsChecked == true;
                 _config.PreguntarAntesDeImprimir = !noPrintSave && (AskBeforePrintCheckBox.IsChecked == true);
                 _config.ImprimirTicketAutomatico = !noPrintSave && (AutoPrintCheckBox.IsChecked == true);
@@ -451,7 +383,6 @@ namespace Punto_de_Venta
                         NewPinBox.Focus();
                         return;
                     }
-
                     _config.EstablecerNuevoPin(nuevoPin);
                     NewPinBox.Clear();
                 }
@@ -460,9 +391,7 @@ namespace Punto_de_Venta
                 _config.Save();
 
                 if (Application.Current is App app)
-                {
                     app.SetDarkMode(modoOscuroSeleccionado);
-                }
 
                 ToastNotification.Show("Configuración guardada exitosamente", ToastType.Success);
             }
@@ -471,39 +400,25 @@ namespace Punto_de_Venta
                 ToastNotification.Show($"Error al guardar configuración: {ex.Message}", ToastType.Error);
             }
         }
-        #endregion
 
-        #region Controles de Ventana (Barra de Título y Cierre)
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
-
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-
-        private void BtnClose_Click(object sender, RoutedEventArgs e)
-        {
-            RevertirColorSiNoSeGuardo();
-            Close();
-        }
-
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
             {
+                // 1. Revertir cambios gráficos no guardados (como colores de acento en prueba)
                 RevertirColorSiNoSeGuardo();
-                Close();
+
+                // 2. Ocultar la vista actual
+                this.Visibility = Visibility.Collapsed;
+
+                // 3. Forzar a MainWindow a mostrar el Dashboard nuevamente
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RegresarAlMenu();
+                }
+
                 e.Handled = true;
             }
         }
-        #endregion
     }
 }

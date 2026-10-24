@@ -38,7 +38,18 @@ namespace Punto_de_Venta.Datos
 
             return list;
         }
-
+        public static void Delete(int id)
+        {
+            using (var conn = DatabaseHelper.GetConnection())
+            {
+                using (var cmd = conn.CreateCommand())
+                {
+                    cmd.CommandText = "DELETE FROM Productos WHERE Id = @id";
+                    cmd.Parameters.AddWithValue("@id", id);
+                    cmd.ExecuteNonQuery();
+                }
+            }
+        }
         public static void Save(IEnumerable<Producto> products)
         {
             using var conn = DatabaseHelper.GetConnection();

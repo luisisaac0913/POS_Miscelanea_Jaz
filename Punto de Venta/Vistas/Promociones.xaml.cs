@@ -1,5 +1,6 @@
 ﻿using Punto_de_Venta.Datos;
 using Punto_de_Venta.Modelos;
+using Punto_de_Venta.Vistas;
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -9,7 +10,7 @@ using System.Windows.Input;
 
 namespace Punto_de_Venta
 {
-    public partial class Promociones : Window
+    public partial class Promociones : UserControl
     {
         public ObservableCollection<Promocion> ListaPromociones { get; } = new ObservableCollection<Promocion>();
 
@@ -31,15 +32,26 @@ namespace Punto_de_Venta
             }
             PromocionesGrid.ItemsSource = ListaPromociones;
         }
-
-        #region Controles de Ventana
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) => DragMove();
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
-            if (e.Key == Key.Escape) Close();
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Focus();
+                Keyboard.Focus(this);
+            }
         }
-        #endregion
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                this.Visibility = Visibility.Collapsed;
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RegresarAlMenu();
+                }
+                e.Handled = true;
+            }
+        }
 
         #region Comportamiento del Formulario
         private void TipoPromoCombo_SelectionChanged(object sender, SelectionChangedEventArgs e)
@@ -91,12 +103,10 @@ namespace Punto_de_Venta
 
         #region Acciones del DataGrid (Activar, Editar, Eliminar)
 
-        // Se ejecuta cada vez que el usuario hace clic en el CheckBox de Activa
         private void ToggleActiva_Click(object sender, RoutedEventArgs e)
         {
             if (sender is CheckBox cb && cb.DataContext is Promocion promo)
             {
-                // Actualiza directamente en la base de datos (Asumiendo que tienes un método Update)
                 if (PromocionDbStore.Update(promo, out string error))
                 {
                     ToastNotification.Show(promo.Activa ? "Promoción Activada" : "Promoción Desactivada", ToastType.Info);
@@ -112,9 +122,9 @@ namespace Punto_de_Venta
         {
             if (sender is Button btn && btn.DataContext is Promocion promo)
             {
-                if (MessageBox.Show($"¿Estás seguro de eliminar la promoción '{promo.Nombre}'?", "Eliminar Promoción", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
+                Window window = Window.GetWindow(this) ?? Application.Current.MainWindow;
+                if (CustomMessageBox.Show(window, $"¿Estás seguro de eliminar la promoción '{promo.Nombre}'?", "Eliminar Promoción", MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes)
                 {
-                    // Asumiendo que tienes un método Delete(int id) en tu DBStore
                     if (PromocionDbStore.Delete(promo.Id))
                     {
                         ToastNotification.Show("Promoción eliminada", ToastType.Success);
@@ -134,16 +144,13 @@ namespace Punto_de_Venta
             {
                 _promocionEnEdicion = promo;
 
-                // Cambiar el diseño visual del formulario
                 TituloFormularioText.Text = "Editar Promoción";
                 BtnGuardarPromo.Content = "Actualizar Cambios";
                 BtnCancelarEdicion.Visibility = Visibility.Visible;
 
-                // Llenar campos
                 NombrePromoBox.Text = promo.Nombre;
                 ProdId1Box.Text = promo.ProductoIdPrincipal.ToString();
 
-                // Seleccionar tipo
                 foreach (ComboBoxItem item in TipoPromoCombo.Items)
                 {
                     if (item.Tag?.ToString() == promo.Tipo.ToString())
@@ -153,7 +160,6 @@ namespace Punto_de_Venta
                     }
                 }
 
-                // Llenar dependientes del tipo
                 if (promo.Tipo == TipoPromocion.Volumen)
                 {
                     CantidadMinBox.Text = promo.CantidadMinima.ToString();
@@ -213,7 +219,6 @@ namespace Punto_de_Venta
             var tipoStr = (TipoPromoCombo.SelectedItem as ComboBoxItem)?.Tag?.ToString() ?? "Volumen";
             var tipo = Enum.Parse<TipoPromocion>(tipoStr);
 
-            // Determinar si creamos una nueva o actualizamos la existente
             var promocion = _promocionEnEdicion ?? new Promocion { Activa = true };
 
             promocion.Nombre = NombrePromoBox.Text.Trim();
@@ -241,7 +246,6 @@ namespace Punto_de_Venta
                 promocion.CantidadMinima = cant;
                 promocion.PrecioEspecial = precioEsp;
 
-                // Limpiar otros valores por si cambió de tipo
                 promocion.ProductoIdSecundario = 0;
                 promocion.PrecioComboTotal = 0;
                 promocion.PorcentajeDescuento = 0;
@@ -287,7 +291,6 @@ namespace Punto_de_Venta
                 promocion.PrecioComboTotal = 0;
             }
 
-            // Lógica de guardado o actualización
             bool guardadoConExito;
             string error = string.Empty;
 

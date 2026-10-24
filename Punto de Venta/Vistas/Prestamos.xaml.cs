@@ -17,7 +17,7 @@ using System.Windows.Threading;
 
 namespace Punto_de_Venta
 {
-    public partial class Prestamos : Window
+    public partial class Prestamos : UserControl
     {
         private readonly DispatcherTimer _clockTimer;
         private Deudor? _selectedDebtor;
@@ -68,12 +68,25 @@ namespace Punto_de_Venta
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
-            Closed += (_, _) => _clockTimer.Stop();
+
+            Unloaded += (_, _) => _clockTimer.Stop();
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e) => FocusSearch();
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Focus();
+                Keyboard.Focus(this);
+            }
+        }
 
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            FocusSearch();
+        }
+
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (HistorialOverlay.Visibility == Visibility.Visible)
             {
@@ -87,7 +100,11 @@ namespace Punto_de_Venta
 
             if (e.Key == Key.Escape)
             {
-                Close();
+                this.Visibility = Visibility.Collapsed;
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RegresarAlMenu();
+                }
                 e.Handled = true;
                 return;
             }
@@ -265,11 +282,9 @@ namespace Punto_de_Venta
 
                 var debtorToDelete = _selectedDebtor;
 
-                // 1. Desvincular la selección visual ANTES de remover datos para evitar el crash del DataGrid
                 DebtorGrid.SelectedItem = null;
                 _selectedDebtor = null;
 
-                // 2. Eliminar en SQLite (Transaccional: Deudor + sus Abonos relacionados)
                 using (var conn = DatabaseHelper.GetConnection())
                 using (var tr = conn.BeginTransaction())
                 {
@@ -301,16 +316,13 @@ namespace Punto_de_Venta
                     }
                 }
 
-                // 3. Remover de la colección en memoria
                 Debtors.Remove(debtorToDelete);
 
-                // 4. Limpieza y refresco de interfaz
                 ClearForm();
                 SetNextId();
                 UpdateSelectionButtons();
                 UpdateTotalLent();
 
-                // 5. Notificación Toast flotante moderna
                 ToastNotification.Show("Registro de deudor eliminado correctamente.", ToastType.Success);
             }
             catch (Exception ex)
@@ -445,22 +457,7 @@ namespace Punto_de_Venta
 
             ShowStatus(mensaje, true);
         }
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
 
-        // ■ Controles de ventana
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
         #region Recordatorios WhatsApp
         private void WhatsAppButton_Click(object sender, RoutedEventArgs e)
         {
@@ -771,7 +768,7 @@ namespace Punto_de_Venta
         {
             if (!_loadFailed) return true;
 
-            ShowStatus("No se guardaron cambios porque prestamos.txt contiene datos inválidos.", false);
+            ShowStatus("No se guardaron cambios porque los datos contienen información inválida.", false);
             return false;
         }
 
@@ -784,7 +781,7 @@ namespace Punto_de_Venta
             }
             catch (Exception exception)
             {
-                ShowStatus($"No se pudo guardar prestamos.txt: {exception.Message}", false);
+                ShowStatus($"No se pudo guardar la información: {exception.Message}", false);
                 return false;
             }
         }

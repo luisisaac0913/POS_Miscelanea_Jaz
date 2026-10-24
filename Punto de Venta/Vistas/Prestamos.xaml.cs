@@ -1,5 +1,6 @@
 ﻿using Punto_de_Venta.Datos;
 using Punto_de_Venta.Modelos;
+using Punto_de_Venta.Servicios;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -7,6 +8,7 @@ using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
 using System.Linq;
+using System.Text;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Data;
@@ -17,13 +19,14 @@ using System.Windows.Threading;
 
 namespace Punto_de_Venta
 {
-    public partial class Prestamos : Window
+    public partial class Prestamos : UserControl
     {
         private readonly DispatcherTimer _clockTimer;
         private Deudor? _selectedDebtor;
         private bool _loadFailed;
         private bool _successStatusVisible;
         private Dictionary<string, decimal> _preciosCatalogo = new(StringComparer.OrdinalIgnoreCase);
+        private string _currentFilter = "All"; // "All", "Pending", "Settled"
 
         public ObservableCollection<Deudor> Debtors { get; } = [];
         public ICollectionView DebtorsView { get; }
@@ -61,19 +64,32 @@ namespace Punto_de_Venta
             }
             catch { }
 
-            UpdateTotalLent();
+            UpdateDashboardKPIs();
             SetNextId();
             UpdateSelectionButtons();
 
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
-            Closed += (_, _) => _clockTimer.Stop();
+
+            Unloaded += (_, _) => _clockTimer.Stop();
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e) => FocusSearch();
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Focus();
+                Keyboard.Focus(this);
+            }
+        }
 
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
+        {
+            FocusSearch();
+        }
+
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (HistorialOverlay.Visibility == Visibility.Visible)
             {
@@ -87,7 +103,11 @@ namespace Punto_de_Venta
 
             if (e.Key == Key.Escape)
             {
-                Close();
+                this.Visibility = Visibility.Collapsed;
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RegresarAlMenu();
+                }
                 e.Handled = true;
                 return;
             }
@@ -104,13 +124,12 @@ namespace Punto_de_Venta
         private void DebtorField_KeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key != Key.Enter) return;
-
-            if (sender == DebtorNameBox)
-            {
-                DebtorPhoneBox.Focus();
-                DebtorPhoneBox.SelectAll();
-            }
             else if (sender == DebtorPhoneBox)
+            {
+                DebtorNameBox.Focus();
+                DebtorNameBox.SelectAll();
+            }
+            else if (sender == DebtorNameBox)
             {
                 ConceptBox.Focus();
                 ConceptBox.SelectAll();
@@ -138,15 +157,31 @@ namespace Punto_de_Venta
         }
         #endregion
 
+        #region Búsqueda y Filtros
         private void FocusSearch()
         {
-            SearchBox.Focus();
-            Keyboard.Focus(SearchBox);
+            this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+            {
+                DebtorPhoneBox.Focus();
+                Keyboard.Focus(DebtorPhoneBox);
+            }));
+        }
+
+        private void FilterDebtors_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is RadioButton rb && rb.Tag is string filterTag)
+            {
+                _currentFilter = filterTag;
+                DebtorsView.Refresh();
+            }
         }
 
         private bool MatchesSearch(object item)
         {
             if (item is not Deudor debtor) return false;
+
+            if (_currentFilter == "Pending" && debtor.SaldoRestante <= 0) return false;
+            if (_currentFilter == "Settled" && debtor.SaldoRestante > 0) return false;
 
             var query = SearchBox.Text.Trim();
             return query.Length == 0 ||
@@ -161,6 +196,7 @@ namespace Punto_de_Venta
             SearchPlaceholder.Visibility = string.IsNullOrEmpty(SearchBox.Text) ? Visibility.Visible : Visibility.Collapsed;
             DebtorsView.Refresh();
         }
+        #endregion
 
         private void DebtorGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -216,7 +252,7 @@ namespace Punto_de_Venta
 
                 ReplaceDebtor(pendingDebtor, updatedDebtor);
                 ClearSearchAndSelect(updatedDebtor);
-                UpdateTotalLent();
+                UpdateDashboardKPIs();
                 ShowStatus("Monto sumado a la cuenta existente del cliente.", true);
                 return;
             }
@@ -246,10 +282,11 @@ namespace Punto_de_Venta
             {
                 return;
             }
-
+            DebtorPhoneBox.Focus();
+            DebtorPhoneBox.SelectAll();
             Debtors.Add(newDebtor);
             ClearSearchAndSelect(newDebtor);
-            UpdateTotalLent();
+            UpdateDashboardKPIs();
             SetNextId();
             ShowStatus("Préstamo añadido.", true);
         }
@@ -265,11 +302,9 @@ namespace Punto_de_Venta
 
                 var debtorToDelete = _selectedDebtor;
 
-                // 1. Desvincular la selección visual ANTES de remover datos para evitar el crash del DataGrid
                 DebtorGrid.SelectedItem = null;
                 _selectedDebtor = null;
 
-                // 2. Eliminar en SQLite (Transaccional: Deudor + sus Abonos relacionados)
                 using (var conn = DatabaseHelper.GetConnection())
                 using (var tr = conn.BeginTransaction())
                 {
@@ -301,16 +336,13 @@ namespace Punto_de_Venta
                     }
                 }
 
-                // 3. Remover de la colección en memoria
                 Debtors.Remove(debtorToDelete);
 
-                // 4. Limpieza y refresco de interfaz
                 ClearForm();
                 SetNextId();
                 UpdateSelectionButtons();
-                UpdateTotalLent();
+                UpdateDashboardKPIs();
 
-                // 5. Notificación Toast flotante moderna
                 ToastNotification.Show("Registro de deudor eliminado correctamente.", ToastType.Success);
             }
             catch (Exception ex)
@@ -351,11 +383,21 @@ namespace Punto_de_Venta
             {
                 SelectDebtor(updatedDebtor);
             }
-            UpdateTotalLent();
+            UpdateDashboardKPIs();
             ShowStatus("Préstamo modificado.", true);
         }
 
+        #region Operaciones de Pago
         private void PayButton_Click(object sender, RoutedEventArgs e) => ApplyPayment();
+
+        private void LiquidateButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedDebtor != null && _selectedDebtor.SaldoRestante > 0)
+            {
+                PaymentAmountBox.Text = _selectedDebtor.SaldoRestante.ToString(CultureInfo.InvariantCulture);
+                ApplyPayment();
+            }
+        }
 
         private void ApplyPayment()
         {
@@ -422,7 +464,7 @@ namespace Punto_de_Venta
                     FechaHora = DateTime.Now,
                     Tipo = "Entrada",
                     Monto = payment,
-                    Concepto = $"Abono de préstamo: {updatedDebtor.Nombre}"
+                    Concepto = $"Abono de cuenta: {updatedDebtor.Nombre}"
                 });
 
                 MovimientoCajaDB.Save(movements);
@@ -434,33 +476,19 @@ namespace Punto_de_Venta
 
             ReplaceDebtor(oldDebtor, updatedDebtor);
             SelectDebtor(updatedDebtor);
-            UpdateTotalLent();
+            UpdateDashboardKPIs();
             UpdateSelectionButtons();
 
             PaymentAmountBox.Clear();
 
             var mensaje = updatedDebtor.SaldoRestante == 0
-                ? $"Préstamo saldado por completo. Entrada de {payment.ToString("C2", culture)} guardada en caja."
-                : $"Abono de {payment.ToString("C2", culture)} registrado con éxito. Entrada guardada en caja.";
+                ? $"Deuda liquidada. Entrada de {payment.ToString("C2", culture)} guardada en caja."
+                : $"Abono de {payment.ToString("C2", culture)} registrado. Entrada guardada en caja.";
 
             ShowStatus(mensaje, true);
         }
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
+        #endregion
 
-        // ■ Controles de ventana
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
         #region Recordatorios WhatsApp
         private void WhatsAppButton_Click(object sender, RoutedEventArgs e)
         {
@@ -515,7 +543,7 @@ namespace Punto_de_Venta
         }
         #endregion
 
-        #region Historial de Abonos
+        #region Historial y Estado de Cuenta
         private void ViewHistoryButton_Click(object sender, RoutedEventArgs e) => MostrarHistorial();
         private void DebtorGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e) => MostrarHistorial();
 
@@ -525,7 +553,7 @@ namespace Punto_de_Venta
 
             var culture = CultureInfo.GetCultureInfo("es-MX");
 
-            HistoryClientName.Text = $"Historial: {_selectedDebtor.Nombre}";
+            HistoryClientName.Text = $"Estado de Cuenta: {_selectedDebtor.Nombre}";
             HistorySummaryText.Text = $"Original: {_selectedDebtor.MontoOriginal.ToString("C2", culture)} | Total Abonado: {_selectedDebtor.TotalAbonado.ToString("C2", culture)} | Pendiente: {_selectedDebtor.SaldoRestante.ToString("C2", culture)}";
 
             HistoryMontoTotalText.Text = _selectedDebtor.SaldoRestante.ToString("C2", culture);
@@ -538,6 +566,66 @@ namespace Punto_de_Venta
 
             HistorialOverlay.Visibility = Visibility.Visible;
             HistorialOverlay.Focus();
+        }
+
+        private void PrintStatementButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedDebtor == null) return;
+
+            var config = AppConfig.Load();
+            if (string.IsNullOrWhiteSpace(config.ImpresoraSeleccionada))
+            {
+                ToastNotification.Show("No hay impresora configurada en Ajustes.", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                var sb = new StringBuilder();
+                int ancho = config.AnchoTicketCaracteres > 0 ? config.AnchoTicketCaracteres : 32;
+                var culture = CultureInfo.GetCultureInfo("es-MX");
+
+                sb.AppendLine(TicketService.CentrarTexto(config.NombreNegocio ?? "NEGOCIO", ancho));
+                sb.AppendLine(TicketService.CentrarTexto("ESTADO DE CUENTA", ancho));
+                sb.AppendLine(new string('-', ancho));
+                sb.AppendLine($"Cliente: {_selectedDebtor.Nombre}");
+                sb.AppendLine($"Fecha: {DateTime.Now:dd/MM/yyyy hh:mm tt}");
+                sb.AppendLine(new string('-', ancho));
+                sb.AppendLine($"Monto Original: {_selectedDebtor.MontoOriginal.ToString("C2", culture)}");
+                sb.AppendLine($"Total Abonado:  {_selectedDebtor.TotalAbonado.ToString("C2", culture)}");
+                sb.AppendLine(new string('-', ancho));
+                sb.AppendLine(TicketService.AlinearDerecha($"SALDO PENDIENTE: {_selectedDebtor.SaldoRestante.ToString("C2", culture)}", ancho));
+                sb.AppendLine(new string('-', ancho));
+
+                if (_selectedDebtor.Abonos.Count > 0)
+                {
+                    sb.AppendLine(TicketService.CentrarTexto("ULTIMOS ABONOS", ancho));
+                    foreach (var abono in _selectedDebtor.Abonos.Take(3))
+                    {
+                        string fechaAbono = abono.Fecha.ToString("dd/MM/yy");
+                        string montoAbono = abono.Monto.ToString("C2", culture);
+                        int espacios = ancho - fechaAbono.Length - montoAbono.Length;
+
+                        sb.AppendLine($"{fechaAbono}{new string(' ', Math.Max(1, espacios))}{montoAbono}");
+                    }
+                    sb.AppendLine(new string('-', ancho));
+                }
+
+                sb.AppendLine(TicketService.CentrarTexto("Guarde este recibo.", ancho));
+                sb.AppendLine("\n\n");
+
+                byte[] buffer = Encoding.ASCII.GetBytes(sb.ToString());
+                bool impreso = RawPrinterHelper.SendBytesToPrinter(config.ImpresoraSeleccionada, buffer);
+
+                if (impreso)
+                    ToastNotification.Show("Estado de cuenta enviado a imprimir.", ToastType.Success);
+                else
+                    ToastNotification.Show("No se pudo conectar a la impresora.", ToastType.Error);
+            }
+            catch (Exception ex)
+            {
+                ToastNotification.Show($"Error al imprimir: {ex.Message}", ToastType.Error);
+            }
         }
 
         private void ConstruirVistaDeudas(Deudor deudor)
@@ -771,7 +859,7 @@ namespace Punto_de_Venta
         {
             if (!_loadFailed) return true;
 
-            ShowStatus("No se guardaron cambios porque prestamos.txt contiene datos inválidos.", false);
+            ShowStatus("No se guardaron cambios porque los datos contienen información inválida.", false);
             return false;
         }
 
@@ -784,7 +872,7 @@ namespace Punto_de_Venta
             }
             catch (Exception exception)
             {
-                ShowStatus($"No se pudo guardar prestamos.txt: {exception.Message}", false);
+                ShowStatus($"No se pudo guardar la información: {exception.Message}", false);
                 return false;
             }
         }
@@ -854,14 +942,21 @@ namespace Punto_de_Venta
             DeleteButton.IsEnabled = hasSelection;
             ModifyButton.IsEnabled = hasSelection;
             PayButton.IsEnabled = hasSelection && _selectedDebtor!.SaldoRestante > 0;
+            LiquidateButton.IsEnabled = hasSelection && _selectedDebtor!.SaldoRestante > 0;
             ViewHistoryButton.IsEnabled = hasSelection;
             WhatsAppButton.IsEnabled = hasSelection && _selectedDebtor!.SaldoRestante > 0;
         }
 
-        private void UpdateTotalLent()
+        private void UpdateDashboardKPIs()
         {
-            var total = Debtors.Where(debtor => debtor.SaldoRestante > 0).Sum(debtor => debtor.SaldoRestante);
-            TotalLentText.Text = $"Total prestado: {total.ToString("C2", CultureInfo.GetCultureInfo("es-MX"))}";
+            var culture = CultureInfo.GetCultureInfo("es-MX");
+            var totalDeuda = Debtors.Where(d => d.SaldoRestante > 0).Sum(d => d.SaldoRestante);
+            var totalRecuperado = Debtors.Sum(d => d.TotalAbonado);
+            var clientesActivos = Debtors.Count(d => d.SaldoRestante > 0);
+
+            KpiDeudaTotal.Text = totalDeuda.ToString("C2", culture);
+            KpiTotalRecuperado.Text = totalRecuperado.ToString("C2", culture);
+            KpiClientesActivos.Text = clientesActivos.ToString();
         }
 
         private void ClearForm()

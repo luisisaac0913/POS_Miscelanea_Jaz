@@ -19,9 +19,9 @@ using System.Windows.Media;
 using System.Windows.Media.Animation;
 using System.Windows.Threading;
 
-namespace Punto_de_Venta
+namespace Punto_de_Venta.Vistas
 {
-    public partial class Cobro : Window
+    public partial class Cobro : UserControl
     {
         #region Campos Privados y Colecciones
         private DispatcherTimer _typingTimer;
@@ -49,7 +49,7 @@ namespace Punto_de_Venta
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ((TextBlock)FindName("ClockText")).Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
-            Closed += (_, _) => _clockTimer.Stop();
+
             ActualizarVisibilidadEmptyState();
             _typingTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
             _typingTimer.Tick += (s, args) =>
@@ -57,21 +57,7 @@ namespace Punto_de_Venta
                 _typingTimer.Stop();
                 RefreshSuggestions();
             };
-            this.StateChanged += (s, e) =>
-            {
-                if (this.WindowState == WindowState.Minimized)
-                {
-                    SuggestionsPopup.IsOpen = false;
-                }
-            };
-            this.Deactivated += (s, e) =>
-            {
-                SuggestionsPopup.IsOpen = false;
-            };
-            this.LocationChanged += (s, e) =>
-            {
-                SuggestionsPopup.IsOpen = false;
-            };
+
             var searchBox = (TextBox)FindName("SearchBox");
             if (searchBox != null)
             {
@@ -88,55 +74,52 @@ namespace Punto_de_Venta
             }
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
-        {
-            CargarPromocionesDesdeDb();
-            var searchBox = (TextBox)FindName("SearchBox");
-            searchBox.Focus();
-            Keyboard.Focus(searchBox);
-            ((DataGrid)FindName("CartGrid")).SelectedIndex = 0;
-        }
-
-        private void Window_Activated(object? sender, EventArgs e)
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
                 _catalog = ProductoDB.Load();
                 CargarPromocionesDesdeDb();
                 RefreshSuggestions();
+                ActualizarEstadoHardware();
             }
             catch (Exception exception)
             {
                 _catalog = new();
-                ((Popup)FindName("SuggestionsPopup")).IsOpen = false;
+                if (FindName("SuggestionsPopup") is Popup popup) popup.IsOpen = false;
                 ToastNotification.Show($"No se pudo cargar el catálogo: {exception.Message}", ToastType.Error);
+            }
+
+            var searchBox = (TextBox)FindName("SearchBox");
+            searchBox?.Focus();
+            Keyboard.Focus(searchBox);
+
+            if (FindName("CartGrid") is DataGrid cartGrid)
+            {
+                cartGrid.SelectedIndex = 0;
             }
         }
         #endregion
 
-        #region Manejo de Interfaz y Ventana
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
-        {
-            if (e.ClickCount == 2)
-            {
-                WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-            }
-            else
-            {
-                DragMove();
-            }
-        }
-
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-
+        #region Manejo de Interfaz
         private void ActualizarVisibilidadEmptyState()
         {
             bool tieneArticulos = CartGrid.Items.Count > 0;
             EmptyCartPanel.Visibility = tieneArticulos ? Visibility.Collapsed : Visibility.Visible;
         }
-
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    this.Focus();
+                    Keyboard.Focus(SearchBox);
+                    SearchBox?.Focus();
+                    SearchBox?.SelectAll();
+                }));
+            }
+        }
         private void AnimarEntradaProducto()
         {
             var animX = new DoubleAnimation
@@ -399,18 +382,26 @@ namespace Punto_de_Venta
 
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
         {
-            if (!this.IsActive || this.WindowState == WindowState.Minimized)
+            if (!this.IsVisible)
             {
-                if (FindName("SuggestionsPopup") is Popup popup) popup.IsOpen = false;
+                if (FindName("SuggestionsPopup") is Popup popup)
+                    popup.IsOpen = false;
+
                 return;
             }
+
             var searchBox = (TextBox)FindName("SearchBox");
-            ((TextBlock)FindName("SearchPlaceholder")).Visibility = string.IsNullOrEmpty(searchBox.Text) ? Visibility.Visible : Visibility.Collapsed;
+
+            ((TextBlock)FindName("SearchPlaceholder")).Visibility =
+                string.IsNullOrEmpty(searchBox.Text)
+                    ? Visibility.Visible
+                    : Visibility.Collapsed;
 
             if (!_purchaseFeedbackVisible)
             {
                 ((TextBlock)FindName("SearchMessage")).Text = string.Empty;
             }
+
             _typingTimer.Stop();
             _typingTimer.Start();
         }
@@ -420,6 +411,7 @@ namespace Punto_de_Venta
             var searchBox = (TextBox)FindName("SearchBox");
             var suggestionsList = (ListBox)FindName("SuggestionsList");
             var suggestionsPopup = (Popup)FindName("SuggestionsPopup");
+
             var query = searchBox.Text.Trim();
 
             if (query.Length == 0)
@@ -429,43 +421,140 @@ namespace Punto_de_Venta
                 return;
             }
 
-            var matches = _catalog
-                .Where(p =>
-                    (!string.IsNullOrEmpty(p.Codigo) && p.Codigo.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                    (!string.IsNullOrEmpty(p.Nombre) && p.Nombre.Contains(query, StringComparison.OrdinalIgnoreCase)) ||
-                    p.Id.ToString(CultureInfo.InvariantCulture) == query)
-                .OrderByDescending(p => !string.IsNullOrEmpty(p.Codigo) && string.Equals(p.Codigo, query, StringComparison.OrdinalIgnoreCase))
-                .ThenByDescending(p => !string.IsNullOrEmpty(p.Codigo) && p.Codigo.StartsWith(query, StringComparison.OrdinalIgnoreCase))
-                .ThenByDescending(p => !string.IsNullOrEmpty(p.Codigo) && p.Codigo.Contains(query, StringComparison.OrdinalIgnoreCase))
-                .ThenByDescending(p => !string.IsNullOrEmpty(p.Nombre) && p.Nombre.StartsWith(query, StringComparison.OrdinalIgnoreCase))
-                .ToList();
+            // Grupos ordenados según las mismas prioridades del código original.
+            // Cada grupo conserva el orden original de _catalog.
+            var exactCodeMatches = new List<Producto>();
+            var codeStartsMatches = new List<Producto>();
+            var codeContainsNameStartsMatches = new List<Producto>();
+            var codeContainsMatches = new List<Producto>();
+            var nameStartsMatches = new List<Producto>();
+            var otherMatches = new List<Producto>();
+
+            foreach (var p in _catalog)
+            {
+                var codigo = p.Codigo;
+                var nombre = p.Nombre;
+
+                if (!string.IsNullOrEmpty(codigo))
+                {
+                    // Prioridad 1: código exacto.
+                    if (string.Equals(
+                        codigo,
+                        query,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        exactCodeMatches.Add(p);
+                        continue;
+                    }
+
+                    // Prioridad 2: código que comienza con la búsqueda.
+                    if (codigo.StartsWith(
+                        query,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        codeStartsMatches.Add(p);
+                        continue;
+                    }
+
+                    // Prioridad 3: código que contiene la búsqueda.
+                    if (codigo.Contains(
+                        query,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        // El nombre también determina el orden dentro
+                        // de los resultados que coinciden con el código.
+                        if (!string.IsNullOrEmpty(nombre) &&
+                            nombre.StartsWith(
+                                query,
+                                StringComparison.OrdinalIgnoreCase))
+                        {
+                            codeContainsNameStartsMatches.Add(p);
+                        }
+                        else
+                        {
+                            codeContainsMatches.Add(p);
+                        }
+
+                        continue;
+                    }
+                }
+
+                // A partir de aquí, el código no contiene la búsqueda.
+                if (!string.IsNullOrEmpty(nombre))
+                {
+                    // Prioridad 4: nombre que comienza con la búsqueda.
+                    if (nombre.StartsWith(
+                        query,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        nameStartsMatches.Add(p);
+                        continue;
+                    }
+
+                    // Coincidencia por nombre.
+                    if (nombre.Contains(
+                        query,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        otherMatches.Add(p);
+                        continue;
+                    }
+                }
+
+                // Coincidencia por ID, conservando la comparación original.
+                if (p.Id.ToString(CultureInfo.InvariantCulture) == query)
+                {
+                    otherMatches.Add(p);
+                }
+            }
+
+            // Las listas ya están ordenadas por prioridad.
+            // No es necesario ejecutar OrderBy / ThenBy.
+            var totalMatches =
+                exactCodeMatches.Count +
+                codeStartsMatches.Count +
+                codeContainsNameStartsMatches.Count +
+                codeContainsMatches.Count +
+                nameStartsMatches.Count +
+                otherMatches.Count;
+
+            var matches = new List<Producto>(totalMatches);
+
+            matches.AddRange(exactCodeMatches);
+            matches.AddRange(codeStartsMatches);
+            matches.AddRange(codeContainsNameStartsMatches);
+            matches.AddRange(codeContainsMatches);
+            matches.AddRange(nameStartsMatches);
+            matches.AddRange(otherMatches);
 
             suggestionsList.ItemsSource = matches;
             suggestionsList.SelectedIndex = matches.Count > 0 ? 0 : -1;
 
-            if (matches.Count > 0 && this.IsActive && this.WindowState != WindowState.Minimized)
-            {
-                suggestionsPopup.IsOpen = true;
-            }
-            else
-            {
-                suggestionsPopup.IsOpen = false;
-            }
+            suggestionsPopup.IsOpen =
+                matches.Count > 0 && this.IsVisible;
         }
 
         private void MoveSuggestionSelection(int offset)
         {
             var suggestionsList = (ListBox)FindName("SuggestionsList");
-            if (suggestionsList.Items.Count == 0) return;
+
+            if (suggestionsList.Items.Count == 0)
+                return;
 
             var nextIndex = suggestionsList.SelectedIndex < 0
                 ? 0
-                : Math.Clamp(suggestionsList.SelectedIndex + offset, 0, suggestionsList.Items.Count - 1);
+                : Math.Clamp(
+                    suggestionsList.SelectedIndex + offset,
+                    0,
+                    suggestionsList.Items.Count - 1);
+
             suggestionsList.SelectedIndex = nextIndex;
             suggestionsList.ScrollIntoView(suggestionsList.SelectedItem);
         }
 
-        private void SuggestionItem_MouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+        private void SuggestionItem_MouseLeftButtonUp(
+            object sender,
+            MouseButtonEventArgs e)
         {
             if (sender is ListBoxItem { DataContext: Producto product })
             {
@@ -480,12 +569,15 @@ namespace Punto_de_Venta
 
             if (product.SeVendePorPeso)
             {
-                if (FindName("SuggestionsPopup") is Popup popup) popup.IsOpen = false;
+                if (FindName("SuggestionsPopup") is Popup popup)
+                    popup.IsOpen = false;
 
                 AddProduct(product, 0m);
 
                 var cartGridScale = (DataGrid)FindName("CartGrid");
-                var cartItemScale = Cart.FirstOrDefault(item => item.ProductoId == product.Id);
+                var cartItemScale = Cart.FirstOrDefault(
+                    item => item.ProductoId == product.Id);
+
                 if (cartItemScale != null && cartGridScale != null)
                 {
                     cartGridScale.SelectedItem = cartItemScale;
@@ -503,7 +595,15 @@ namespace Punto_de_Venta
             }
             else if (product.PedirCantidadAlCobrar)
             {
-                var modal = new CantidadModal(product.Nombre) { Owner = this };
+                var modal = new CantidadModal(product.Nombre);
+
+                // Si el control está dentro de MainWindow,
+                // lo asignamos como Owner.
+                if (Window.GetWindow(this) is Window w)
+                {
+                    modal.Owner = w;
+                }
+
                 modal.ShowDialog();
 
                 if (!modal.Confirmado)
@@ -520,16 +620,21 @@ namespace Punto_de_Venta
             AddProduct(product, cantidad);
 
             var cartGrid = (DataGrid)FindName("CartGrid");
-            var cartItem = Cart.FirstOrDefault(item => item.ProductoId == product.Id);
+            var cartItem = Cart.FirstOrDefault(
+                item => item.ProductoId == product.Id);
+
             if (cartItem != null && cartGrid != null)
             {
                 cartGrid.SelectedItem = cartItem;
                 cartGrid.ScrollIntoView(cartItem);
             }
 
-            if (FindName("SuggestionsPopup") is Popup popupCierre) popupCierre.IsOpen = false;
+            if (FindName("SuggestionsPopup") is Popup popupCierre)
+                popupCierre.IsOpen = false;
+
             var searchBox = (TextBox)FindName("SearchBox");
             searchBox?.Clear();
+
             FocusSearch();
             ActualizarVisibilidadEmptyState();
             AnimarEntradaProducto();
@@ -539,19 +644,97 @@ namespace Punto_de_Venta
         {
             var searchBox = (TextBox)FindName("SearchBox");
             var query = searchBox.Text.Trim();
-            if (query.Length == 0) { FocusSearch(); return; }
 
-            var product = _catalog.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Codigo) && string.Equals(p.Codigo.Trim(), query, StringComparison.OrdinalIgnoreCase));
-            if (product is null && int.TryParse(query, out var idBuscado)) product = _catalog.FirstOrDefault(p => p.Id == idBuscado);
-            if (product is null) product = _catalog.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Codigo) && p.Codigo.StartsWith(query, StringComparison.OrdinalIgnoreCase));
-            if (product is null) product = _catalog.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Nombre) && p.Nombre.StartsWith(query, StringComparison.OrdinalIgnoreCase));
-            if (product is null) product = _catalog.FirstOrDefault(p => !string.IsNullOrWhiteSpace(p.Nombre) && p.Nombre.Contains(query, StringComparison.OrdinalIgnoreCase));
+            if (query.Length == 0)
+            {
+                FocusSearch();
+                return;
+            }
+
+            // Se guarda el primer resultado de cada criterio.
+            // Se conserva la prioridad original:
+            // código exacto > ID > código inicial > nombre inicial > nombre contenido.
+            Producto? product = null;
+            Producto? productoPorId = null;
+            Producto? productoCodigoPrefijo = null;
+            Producto? productoNombrePrefijo = null;
+            Producto? productoNombreContiene = null;
+
+            var idValido = int.TryParse(query, out var idBuscado);
+
+            foreach (var p in _catalog)
+            {
+                var codigo = p.Codigo;
+
+                // Prioridad 1: código exacto, ignorando mayúsculas
+                // y minúsculas y eliminando espacios exteriores.
+                if (!string.IsNullOrWhiteSpace(codigo) &&
+                    string.Equals(
+                        codigo.Trim(),
+                        query,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    product = p;
+                    break;
+                }
+
+                // Prioridad 2: ID del producto.
+                if (idValido &&
+                    productoPorId == null &&
+                    p.Id == idBuscado)
+                {
+                    productoPorId = p;
+                }
+
+                // Prioridad 3: código que comienza con la búsqueda.
+                // Se mantiene el comportamiento original sin aplicar Trim al código.
+                if (productoCodigoPrefijo == null &&
+                    !string.IsNullOrWhiteSpace(codigo) &&
+                    codigo.StartsWith(
+                        query,
+                        StringComparison.OrdinalIgnoreCase))
+                {
+                    productoCodigoPrefijo = p;
+                }
+
+                var nombre = p.Nombre;
+
+                if (!string.IsNullOrWhiteSpace(nombre))
+                {
+                    // Prioridad 4: nombre que comienza con la búsqueda.
+                    if (productoNombrePrefijo == null &&
+                        nombre.StartsWith(
+                            query,
+                            StringComparison.OrdinalIgnoreCase))
+                    {
+                        productoNombrePrefijo = p;
+                    }
+
+                    // Prioridad 5: nombre que contiene la búsqueda.
+                    else if (productoNombreContiene == null &&
+                             nombre.Contains(
+                                 query,
+                                 StringComparison.OrdinalIgnoreCase))
+                    {
+                        productoNombreContiene = p;
+                    }
+                }
+            }
+
+            // Si no existe código exacto, se elige el primer resultado
+            // según las prioridades originales.
+            product ??=
+                productoPorId ??
+                productoCodigoPrefijo ??
+                productoNombrePrefijo ??
+                productoNombreContiene;
 
             if (product is null)
             {
                 OpenQuickAdd(query);
                 return;
             }
+
             ActualizarVisibilidadEmptyState();
             AddSuggestion(product);
         }
@@ -559,16 +742,23 @@ namespace Punto_de_Venta
         private void RemoveSelectedProduct()
         {
             var cartGrid = (DataGrid)FindName("CartGrid");
-            if (cartGrid.SelectedItem is not ItemCarrito selectedItem) return;
+
+            if (cartGrid.SelectedItem is not ItemCarrito selectedItem)
+                return;
 
             selectedItem.PropertyChanged -= CartItem_PropertyChanged;
             Cart.Remove(selectedItem);
 
             var ultimo = Cart.LastOrDefault();
             cartGrid.SelectedItem = ultimo;
-            if (ultimo != null) cartGrid.ScrollIntoView(ultimo);
 
-            ToastNotification.Show($"Se quitó '{selectedItem.Nombre}' del carrito", ToastType.Info);
+            if (ultimo != null)
+                cartGrid.ScrollIntoView(ultimo);
+
+            ToastNotification.Show(
+                $"Se quitó '{selectedItem.Nombre}' del carrito",
+                ToastType.Info);
+
             ActualizarVisibilidadEmptyState();
         }
         #endregion
@@ -698,9 +888,57 @@ namespace Punto_de_Venta
         #endregion
 
         #region Atajos de Teclado Centralizados
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private bool CerrarModalActivo()
+        {
+            // Revisa uno por uno todos los overlays/modales posibles en la vista de Cobro
+            if (PaymentOverlay != null && PaymentOverlay.Visibility == Visibility.Visible)
+            {
+                PaymentOverlay.Visibility = Visibility.Collapsed;
+                FocusSearch();
+                return true;
+            }
+            if (ScaleOverlay != null && ScaleOverlay.Visibility == Visibility.Visible)
+            {
+                CancelScale_Click(this, new RoutedEventArgs());
+                return true;
+            }
+            if (QuickRestockOverlay != null && QuickRestockOverlay.Visibility == Visibility.Visible)
+            {
+                CloseQuickRestock();
+                return true;
+            }
+            if (CreditOverlay != null && CreditOverlay.Visibility == Visibility.Visible)
+            {
+                CloseCreditOverlay();
+                return true;
+            }
+            if (CashMovementOverlay != null && CashMovementOverlay.Visibility == Visibility.Visible)
+            {
+                CloseCashMovement();
+                return true;
+            }
+            if (QuickAddOverlay != null && QuickAddOverlay.Visibility == Visibility.Visible)
+            {
+                CloseQuickAdd();
+                return true;
+            }
+
+            var suggestionsPopup = (Popup)FindName("SuggestionsPopup");
+            if (suggestionsPopup != null && suggestionsPopup.IsOpen)
+            {
+                suggestionsPopup.IsOpen = false;
+                return true;
+            }
+
+            return false; // Ningún modal estaba abierto
+        }
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.IsRepeat) return;
+
+            // ==========================================
+            // 1. INTERCEPTAR ESC / ENTER EN CUALQUIER MODAL ABIERTO (PRIMERO)
+            // ==========================================
 
             if (ScaleOverlay.Visibility == Visibility.Visible)
             {
@@ -708,10 +946,11 @@ namespace Punto_de_Venta
                 {
                     CancelScale_Click(this, new RoutedEventArgs());
                     e.Handled = true;
+                    Cart.Clear();
                 }
                 return;
             }
-            // Cierra el modal de Restock si está abierto
+
             if (QuickRestockOverlay.Visibility == Visibility.Visible)
             {
                 if (e.Key == Key.Escape)
@@ -722,13 +961,6 @@ namespace Punto_de_Venta
                 return;
             }
 
-            // Abre el modal de Restock Rápido con F10
-            if (e.Key == Key.F10 || (e.Key == Key.System && e.SystemKey == Key.F10))
-            {
-                OpenQuickRestockModal();
-                e.Handled = true;
-                return;
-            }
             if (CreditOverlay.Visibility == Visibility.Visible)
             {
                 if (e.Key == Key.Escape)
@@ -744,21 +976,8 @@ namespace Punto_de_Venta
                 return;
             }
 
-            if (e.Key == Key.F8)
-            {
-                AbrirModalPesaje();
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.F5)
-            {
-                CajonService.AbrirCajon();
-                e.Handled = true;
-            }
-
-            var paymentOverlay = (Grid)FindName("PaymentOverlay");
-            if (paymentOverlay != null && paymentOverlay.Visibility == Visibility.Visible)
+            // Validación corregida y directa para PaymentOverlay
+            if (PaymentOverlay != null && PaymentOverlay.Visibility == Visibility.Visible)
             {
                 if (e.Key == Key.F1) { RbEfectivo.IsChecked = true; e.Handled = true; return; }
                 if (e.Key == Key.F2) { RbTarjeta.IsChecked = true; e.Handled = true; return; }
@@ -768,7 +987,7 @@ namespace Punto_de_Venta
 
                 if (e.Key == Key.Escape)
                 {
-                    paymentOverlay.Visibility = Visibility.Collapsed;
+                    PaymentOverlay.Visibility = Visibility.Collapsed;
                     FocusSearch();
                     e.Handled = true;
                     return;
@@ -807,37 +1026,9 @@ namespace Punto_de_Venta
                 return;
             }
 
-            if (e.Key == Key.F4) { OpenCashMovement(); e.Handled = true; return; }
-
             if (QuickAddOverlay.Visibility == Visibility.Visible)
             {
                 if (e.Key == Key.Escape) { CloseQuickAdd(); e.Handled = true; }
-                return;
-            }
-
-            if (_purchaseFeedbackVisible && e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) != ModifierKeys.Shift)
-            {
-                ClearPurchaseFeedback();
-            }
-
-            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && e.Key == Key.Left || e.Key == Key.Tab)
-            {
-                FocusSearch();
-                e.Handled = true;
-                return;
-            }
-
-            if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
-            {
-                if (_modalAbierto) return;
-
-                var popup = (Popup)FindName("SuggestionsPopup");
-                if (popup != null) popup.IsOpen = false;
-
-                try { _modalAbierto = true; StartPayment(); }
-                finally { _modalAbierto = false; }
-
-                e.Handled = true;
                 return;
             }
 
@@ -879,6 +1070,65 @@ namespace Punto_de_Venta
                 }
             }
 
+            // ==========================================
+            // 2. ATAJOS GENERALES DE LA VISTA DE COBRO
+            // ==========================================
+
+            if (e.Key == Key.F10 || (e.Key == Key.System && e.SystemKey == Key.F10))
+            {
+                OpenQuickRestockModal();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.F8)
+            {
+                AbrirModalPesaje();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.F5)
+            {
+                CajonService.AbrirCajon();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.F4)
+            {
+                OpenCashMovement();
+                e.Handled = true;
+                return;
+            }
+
+            if (_purchaseFeedbackVisible && e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) != ModifierKeys.Shift)
+            {
+                ClearPurchaseFeedback();
+                e.Handled = true;
+                return;
+            }
+
+            if ((Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control && e.Key == Key.Left || e.Key == Key.Tab)
+            {
+                FocusSearch();
+                e.Handled = true;
+                return;
+            }
+
+            if (e.Key == Key.Enter && (Keyboard.Modifiers & ModifierKeys.Shift) == ModifierKeys.Shift)
+            {
+                if (_modalAbierto) return;
+
+                if (suggestionsPopup != null) suggestionsPopup.IsOpen = false;
+
+                try { _modalAbierto = true; StartPayment(); }
+                finally { _modalAbierto = false; }
+
+                e.Handled = true;
+                return;
+            }
+
             if (e.Key == Key.Enter)
             {
                 if (_modalAbierto) return;
@@ -897,7 +1147,15 @@ namespace Punto_de_Venta
             }
             else if (e.Key == Key.Escape)
             {
-                Close();
+                // 1. Intenta cerrar un modal activo. Si había uno abierto, se detiene aquí.
+                if (!CerrarModalActivo())
+                {
+                    // 2. Solo si NO había ningún modal abierto, regresa al menú principal.
+                    if (Application.Current.MainWindow is MainWindow mainWindow)
+                    {
+                        mainWindow.RegresarAlMenu();
+                    }
+                }
                 e.Handled = true;
             }
         }
@@ -1028,7 +1286,6 @@ namespace Punto_de_Venta
 
             var config = AppConfig.Load();
 
-            // Aquí se pasa sale.Productos directamente para no romper el TicketService
             TicketService.GuardarCopiaDigital(sale, sale.Productos, 0m, 0m, config);
 
             foreach (var cartItem in Cart)
@@ -1142,7 +1399,7 @@ namespace Punto_de_Venta
         }
         #endregion
 
-        #region Proceso de Cobro de Venta (Módulo Principal)
+        #region Proceso de Cobro de Venta
         private void PaymentMethod_Changed(object sender, RoutedEventArgs e)
         {
             if (RbMixto == null || RbEfectivo == null) return;
@@ -1258,7 +1515,6 @@ namespace Punto_de_Venta
 
             var change = Math.Max(0m, amountReceived - total);
 
-            // NUEVO CANDADO DE SEGURIDAD: Evita dar cambio de un cobro con tarjeta o transferencia
             if (change > pEfectivo)
             {
                 ((TextBlock)FindName("PaymentMessage")).Text = "No puedes dar cambio de pagos con tarjeta o transferencia.";
@@ -1332,7 +1588,6 @@ namespace Punto_de_Venta
 
             var config = AppConfig.Load();
 
-            // Usamos sale.Productos que es el tipo DetalleVenta que espera el TicketService actualizado
             TicketService.GuardarCopiaDigital(sale, sale.Productos, amountReceived, change, config);
 
             if (config.ImprimirTicketAutomatico)
@@ -1341,7 +1596,9 @@ namespace Punto_de_Venta
             }
             else if (config.PreguntarAntesDeImprimir)
             {
-                var resultado = MessageBox.Show(this, "¿Deseas imprimir el ticket de esta venta?", "Ticket de Venta", MessageBoxButton.YesNo, MessageBoxImage.Question);
+                // Como es UserControl y no ventana, usamos el MainWindow si es posible
+                Window window = Window.GetWindow(this) ?? Application.Current.MainWindow;
+                var resultado = CustomMessageBox.Show(window, "¿Deseas imprimir el ticket de esta venta?", "Ticket de Venta", MessageBoxButton.YesNo, MessageBoxImage.Question);
                 if (resultado == MessageBoxResult.Yes)
                 {
                     TicketService.ImprimirFisico(sale, sale.Productos, amountReceived, change, config);
@@ -1575,10 +1832,9 @@ namespace Punto_de_Venta
         }
         #endregion
 
-        #region Módulo Modo ReStock Rápido (Modal Instantáneo)
+        #region Módulo Modo ReStock Rápido
         private void OpenQuickRestockModal()
         {
-            // Cerramos sugerencias u otros popups si están abiertos
             if (FindName("SuggestionsPopup") is System.Windows.Controls.Primitives.Popup popup)
                 popup.IsOpen = false;
 
@@ -1597,7 +1853,7 @@ namespace Punto_de_Venta
         private void CloseQuickRestock()
         {
             QuickRestockOverlay.Visibility = Visibility.Collapsed;
-            FocusSearch(); // Regresa el foco al buscador principal de cobro
+            FocusSearch();
         }
 
         private void QrScanCodeBox_KeyDown(object sender, KeyEventArgs e)
@@ -1686,7 +1942,7 @@ namespace Punto_de_Venta
             }
             catch (Exception ex)
             {
-                prod.Stock -= addAmount; // Revertir en memoria si falla BD
+                prod.Stock -= addAmount;
                 QrStatusMessage.Text = "Error al guardar en disco.";
                 ToastNotification.Show($"Error al guardar: {ex.Message}", ToastType.Error);
             }

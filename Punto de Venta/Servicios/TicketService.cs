@@ -51,6 +51,7 @@ namespace Punto_de_Venta.Servicios
                     if (cantDesc.Length > ancho - subtotalStr.Length - 1)
                         cantDesc = cantDesc.Substring(0, Math.Max(1, ancho - subtotalStr.Length - 2)) + ".";
                 }
+
                 int espacios = ancho - cantDesc.Length - subtotalStr.Length;
                 sb.AppendLine($"{cantDesc}{new string(' ', Math.Max(1, espacios))}{subtotalStr}");
             }
@@ -133,10 +134,10 @@ namespace Punto_de_Venta.Servicios
         #endregion
 
         #region Utilidades de Formato y Alineación
-        private static string CentrarTexto(string texto, int ancho) =>
+        public static string CentrarTexto(string texto, int ancho) =>
             texto.Length >= ancho ? texto.Substring(0, ancho) : new string(' ', (ancho - texto.Length) / 2) + texto;
 
-        private static string AlinearDerecha(string texto, int ancho) =>
+        public static string AlinearDerecha(string texto, int ancho) =>
             texto.Length >= ancho ? texto : new string(' ', ancho - texto.Length) + texto;
         #endregion
     }

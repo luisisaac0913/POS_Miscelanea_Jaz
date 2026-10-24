@@ -1,3 +1,10 @@
+using LiveChartsCore;
+using LiveChartsCore.SkiaSharpView;
+using LiveChartsCore.SkiaSharpView.Painting;
+using Punto_de_Venta.Datos;
+using Punto_de_Venta.Modelos;
+using Punto_de_Venta.Vistas;
+using SkiaSharp;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -8,31 +15,27 @@ using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using QuestPDF.Fluent;
+using QuestPDF.Helpers;
+using QuestPDF.Infrastructure;
 using System.Windows.Media;
 using System.Windows.Threading;
-using LiveChartsCore;
-using LiveChartsCore.SkiaSharpView;
-using LiveChartsCore.SkiaSharpView.Painting;
-using Punto_de_Venta.Datos;
-using Punto_de_Venta.Modelos;
-using SkiaSharp;
 
 namespace Punto_de_Venta
 {
-    public partial class Graficas : Window, INotifyPropertyChanged
+    public partial class Graficas : UserControl, INotifyPropertyChanged
     {
         #region Campos Privados
         private readonly DispatcherTimer _clockTimer;
-        private readonly List<Venta> _sales;
-        private readonly List<Producto> _catalog;
-        private readonly List<CorteCaja> _cortes;
-        private readonly List<MovimientoCaja> _movimientos;
+        private List<Venta> _sales;
+        private List<Producto> _catalog;
+        private List<CorteCaja> _cortes;
+        private List<MovimientoCaja> _movimientos;
         private readonly CultureInfo _mexicanCulture = CultureInfo.GetCultureInfo("es-MX");
 
         private Period _currentPeriod = Period.Day;
         private ChartView _currentView = ChartView.Finanzas;
 
-        // Variables para el periodo Custom
         private DateTime _customStart = DateTime.Today;
         private DateTime _customEnd = DateTime.Today;
         #endregion
@@ -64,10 +67,32 @@ namespace Punto_de_Venta
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
-            Closed += (_, _) => _clockTimer.Stop();
+
+            // Reemplazo del evento Closed de Window por Unloaded de UserControl
+            Unloaded += (_, _) => _clockTimer.Stop();
+
             RefreshData();
         }
-
+        private void RecargarDatosDesdeDisco()
+        {
+            try { _catalog = ProductoDB.Load() ?? []; } catch { _catalog = []; }
+            try { _sales = VentaDB.Load().Where(s => s.Estado != "Cancelada").ToList(); foreach (var sale in _sales) HydrateSaleProfit(sale); } catch { _sales = []; }
+            try { _cortes = CorteCajaDB.Load() ?? []; } catch { _cortes = []; }
+            try { _movimientos = MovimientoCajaDB.Load() ?? []; } catch { _movimientos = []; }
+        }
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    this.Focus();
+                    Keyboard.Focus(this);
+                    RecargarDatosDesdeDisco();
+                    RefreshData();
+                }));
+            }
+        }
         private void HydrateSaleProfit(Venta sale)
         {
             if (sale.Productos.Count > 0)
@@ -96,21 +121,46 @@ namespace Punto_de_Venta
         }
         #endregion
 
-        #region Eventos de Ventana y UI
-        private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e) { if (e.ClickCount == 2) WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized; else DragMove(); }
-        private void BtnMinimize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState.Minimized;
-        private void BtnMaximize_Click(object sender, RoutedEventArgs e) => WindowState = WindowState == WindowState.Maximized ? WindowState.Normal : WindowState.Maximized;
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-        private void Window_Loaded(object sender, RoutedEventArgs e) => DayButton.Focus();
+        #region Eventos de UI
+        private void UserControl_Loaded(object sender, RoutedEventArgs e) => DayButton.Focus();
 
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
         {
-            if (HelpOverlay.Visibility == Visibility.Visible && e.Key == Key.Escape) { HelpOverlay.Visibility = Visibility.Collapsed; e.Handled = true; return; }
-            if (MovimientosOverlay.Visibility == Visibility.Visible && e.Key == Key.Escape) { MovimientosOverlay.Visibility = Visibility.Collapsed; e.Handled = true; return; }
-            if (e.Key == Key.Escape) { Close(); e.Handled = true; }
+            if (e.IsRepeat) return;
+
+            // 1. Interceptar modales activos para cerrarlos de forma individual con ESC
+            if (HelpOverlay != null && HelpOverlay.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    HelpOverlay.Visibility = Visibility.Collapsed;
+                    e.Handled = true;
+                }
+                return;
+            }
+
+            if (MovimientosOverlay != null && MovimientosOverlay.Visibility == Visibility.Visible)
+            {
+                if (e.Key == Key.Escape)
+                {
+                    MovimientosOverlay.Visibility = Visibility.Collapsed;
+                    e.Handled = true;
+                }
+                return;
+            }
+
+            // 2. Si no hay ningún modal abierto, ESC regresa al menú principal
+            if (e.Key == Key.Escape)
+            {
+                this.Visibility = Visibility.Collapsed;
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RegresarAlMenu();
+                }
+                e.Handled = true;
+            }
         }
 
-        // --- Ayuda ---
         private void HelpButton_Click(object sender, RoutedEventArgs e) { HelpOverlay.Visibility = Visibility.Visible; HelpOverlay.Focus(); }
         private void CloseHelp_Click(object sender, RoutedEventArgs e) { HelpOverlay.Visibility = Visibility.Collapsed; }
         private void HelpOverlay_MouseDown(object sender, MouseButtonEventArgs e) { if (ReferenceEquals(e.OriginalSource, HelpOverlay)) HelpOverlay.Visibility = Visibility.Collapsed; }
@@ -128,7 +178,6 @@ namespace Punto_de_Venta
         private void MonthButton_Click(object sender, RoutedEventArgs e) { _currentPeriod = Period.Month; RestoreNormalPeriods(); RefreshData(); }
         private void YearButton_Click(object sender, RoutedEventArgs e) { _currentPeriod = Period.Year; RestoreNormalPeriods(); RefreshData(); }
 
-        // --- Botón Rango Custom ---
         private void CustomButton_Click(object sender, RoutedEventArgs e)
         {
             NormalPeriodContainer.Visibility = Visibility.Collapsed;
@@ -144,7 +193,6 @@ namespace Punto_de_Venta
                 _customStart = StartDatePicker.SelectedDate.Value;
                 _customEnd = EndDatePicker.SelectedDate.Value;
 
-                // Prevenir fechas invertidas
                 if (_customStart > _customEnd)
                 {
                     (_customStart, _customEnd) = (_customEnd, _customStart);
@@ -158,7 +206,6 @@ namespace Punto_de_Venta
 
         private void CancelCustomDate_Click(object sender, RoutedEventArgs e) => RestoreNormalPeriods();
 
-        // --- Navegación Izquierda ---
         private void NavFinanzas_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.Finanzas; RefreshData(); }
         private void NavMetodos_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.MetodosPago; RefreshData(); }
         private void NavCategorias_Click(object sender, RoutedEventArgs e) { _currentView = ChartView.Categorias; RefreshData(); }
@@ -174,7 +221,6 @@ namespace Punto_de_Venta
             DateTime start = today;
             DateTime end = today;
 
-            // Determinar Rango de Fechas
             switch (_currentPeriod)
             {
                 case Period.Day: start = today; end = today; break;
@@ -184,7 +230,6 @@ namespace Punto_de_Venta
                 case Period.Custom: start = _customStart.Date; end = _customEnd.Date; break;
             }
 
-            // Filtrar Listas con el EndDate (<= end en vez de <= today)
             var selectedSales = _sales.Where(s => s.FechaHora.Date >= start && s.FechaHora.Date <= end).ToList();
             var selectedCortes = _cortes.Where(c => c.FechaHora.Date >= start && c.FechaHora.Date <= end).ToList();
 
@@ -199,7 +244,6 @@ namespace Punto_de_Venta
             var totalGastos = _movimientos.Where(m => m.FechaHora.Date >= start && m.FechaHora.Date <= end && (m.Tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase) || m.Tipo.Equals("Gasto", StringComparison.OrdinalIgnoreCase))).Sum(m => m.Monto);
             var balanceNeto = totalVentas - totalGastos;
 
-            // Actualizar Tarjetas (KPIs)
             KpiVentaTotal.Text = totalVentas.ToString("C2", _mexicanCulture);
             KpiCostoTotal.Text = totalCosto.ToString("C2", _mexicanCulture);
             KpiGananciaNeta.Text = totalGanancia.ToString("C2", _mexicanCulture);
@@ -210,7 +254,6 @@ namespace Punto_de_Venta
             KpiTicketPromedio.Text = $"Ticket prom: {ticketPromedio.ToString("C2", _mexicanCulture)}";
             KpiMargenPorcentaje.Text = $"Margen: {margenPct:F1}%";
 
-            // Estilos de Botones
             ActualizarEstiloBotonPeriodo(DayButton, _currentPeriod == Period.Day);
             ActualizarEstiloBotonPeriodo(WeekButton, _currentPeriod == Period.Week);
             ActualizarEstiloBotonPeriodo(MonthButton, _currentPeriod == Period.Month);
@@ -224,7 +267,6 @@ namespace Punto_de_Venta
             ActualizarEstiloBotonSidebar(NavRentabilidadBtn, _currentView == ChartView.Rentabilidad);
             ActualizarEstiloBotonSidebar(NavCortesBtn, _currentView == ChartView.CortesCaja);
 
-            // Alternar Visibilidad
             MainChartView.Visibility = Visibility.Collapsed;
             PieChartView.Visibility = Visibility.Collapsed;
             CortesContainerView.Visibility = Visibility.Collapsed;
@@ -348,36 +390,220 @@ namespace Punto_de_Venta
         }
         private void ExportarReporteDia_Click(object sender, RoutedEventArgs e)
         {
-            // 1. Tomar el último corte cerrado o el abierto actualmente
-            var corte = _cortes.OrderByDescending(c => c.FechaHora).FirstOrDefault();
-            if (corte == null)
+            // 1. Determinar las fechas exactas del periodo actualmente visualizado
+            var today = DateTime.Today;
+            DateTime start = today;
+            DateTime end = today;
+
+            switch (_currentPeriod)
             {
-                MessageBox.Show("No hay cortes registrados para exportar.", "Aviso", MessageBoxButton.OK, MessageBoxImage.Warning);
+                case Period.Day: start = today; end = today; break;
+                case Period.Week: start = today.AddDays(-6); end = today; break;
+                case Period.Month: start = new DateTime(today.Year, today.Month, 1); end = start.AddMonths(1).AddDays(-1); break;
+                case Period.Year: start = new DateTime(today.Year, 1, 1); end = today; break;
+                case Period.Custom: start = _customStart.Date; end = _customEnd.Date; break;
+            }
+
+            // 2. Filtrar todos los datos que correspondan a esas fechas
+            var selectedSales = _sales.Where(s => s.FechaHora.Date >= start && s.FechaHora.Date <= end).ToList();
+            var selectedCortes = _cortes.Where(c => c.FechaHora.Date >= start && c.FechaHora.Date <= end).ToList();
+            var selectedMovimientos = _movimientos.Where(m => m.FechaHora.Date >= start && m.FechaHora.Date <= end).ToList();
+
+            if (selectedSales.Count == 0 && selectedCortes.Count == 0)
+            {
+                ToastNotification.Show("No hay datos en este periodo para exportar.", ToastType.Warning);
                 return;
             }
 
-            // 2. Traer los movimientos de ese corte específico
-            var movimientos = _movimientos.Where(m => m.CorteCajaId == corte.Id).ToList();
+            // 3. Capturar la gráfica que esté visible actualmente como imagen
+            byte[] chartImage = null;
+            if (MainChartView.Visibility == Visibility.Visible) chartImage = CapturarControlWpf(MainChartView);
+            else if (PieChartView.Visibility == Visibility.Visible) chartImage = CapturarControlWpf(PieChartView);
 
-            // 3. Capturar la gráfica como imagen (Cambia NombreDeTuGraficaEnXaml por el de tu XAML)
-            // Si tu gráfica de pastel se llama GraficaVentasPastel, ponlo ahí. Si no la necesitas, pon null.
-            byte[] imagenGrafica = Reportes.ReporteDiarioPdf.CapturarElementoComoImagen(PieChartView);
+            var sfd = new Microsoft.Win32.SaveFileDialog
+            {
+                Filter = "Archivo PDF (*.pdf)|*.pdf",
+                FileName = $"Reporte_Financiero_{start:ddMMyyyy}_al_{end:ddMMyyyy}.pdf",
+                Title = "Exportar Reporte Global a PDF"
+            };
 
-            // 4. Configurar rutas
-            string rutaLogo = @"C:\Ruta\Al\Logo.png"; // Puedes dejarlo vacío si aún no tienes logo
+            if (sfd.ShowDialog() == true)
+            {
+                try
+                {
+                    QuestPDF.Settings.License = LicenseType.Community;
+                    GenerarPdfReporteGlobal(sfd.FileName, start, end, selectedSales, selectedCortes, selectedMovimientos, chartImage);
 
-            // Guardar en el escritorio
-            string escritorio = Environment.GetFolderPath(Environment.SpecialFolder.Desktop);
-            string rutaPdf = System.IO.Path.Combine(escritorio, $"Reporte_Turno_{corte.Id}_{DateTime.Now:dd_MM_yyyy_HHmm}.pdf");
+                    ToastNotification.Show("✅ Reporte exportado a PDF exitosamente.", ToastType.Success);
+                    System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo { FileName = sfd.FileName, UseShellExecute = true });
+                }
+                catch (Exception ex)
+                {
+                    ToastNotification.Show($"Error al generar el PDF: {ex.Message}", ToastType.Error);
+                }
+            }
+        }
+        private void GenerarPdfReporteGlobal(string filePath, DateTime start, DateTime end, List<Venta> sales, List<CorteCaja> cortes, List<MovimientoCaja> movimientos, byte[] chartImage)
+        {
+            var culture = CultureInfo.GetCultureInfo("es-MX");
+            var totalVentas = sales.Sum(s => s.Total);
+            var totalGanancia = sales.Sum(s => s.GananciaTotal);
+            var gastosList = movimientos.Where(m => m.Tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase) || m.Tipo.Equals("Gasto", StringComparison.OrdinalIgnoreCase)).ToList();
+            var totalGastos = gastosList.Sum(m => m.Monto);
+            var balanceNeto = totalVentas - totalGastos;
 
-            // 5. Generar y abrir el PDF
+            // Calcular Top 10 Productos del periodo
+            var dictTop = new Dictionary<string, (int Qty, decimal Ingreso)>(StringComparer.OrdinalIgnoreCase);
+            foreach (var s in sales)
+            {
+                if (s.Productos.Count > 0) { foreach (var p in s.Productos) { var cur = dictTop.GetValueOrDefault(p.Nombre); dictTop[p.Nombre] = (cur.Qty + p.Cantidad, cur.Ingreso + (p.Precio * p.Cantidad)); } }
+                else { foreach (var (name, qty) in ParseLegacySummary(s.ProductosResumen)) { var cur = dictTop.GetValueOrDefault(name); dictTop[name] = (cur.Qty + qty, cur.Ingreso); } }
+            }
+            var topList = dictTop.OrderByDescending(x => x.Value.Ingreso).ThenByDescending(x => x.Value.Qty).Take(10).ToList();
+
+            QuestPDF.Fluent.Document.Create(container =>
+            {
+                container.Page(page =>
+                {
+                    page.Size(QuestPDF.Helpers.PageSizes.A4);
+                    page.Margin(1, QuestPDF.Infrastructure.Unit.Centimetre);
+                    page.PageColor(QuestPDF.Helpers.Colors.White);
+                    page.DefaultTextStyle(x => x.FontSize(10).FontFamily(QuestPDF.Helpers.Fonts.Lato));
+
+                    // Encabezado
+                    page.Header().Column(col =>
+                    {
+                        col.Item().Text("REPORTE FINANCIERO GLOBAL").SemiBold().FontSize(18).FontColor(QuestPDF.Helpers.Colors.Blue.Darken2);
+                        string rangoFechas = start.Date == end.Date ? start.ToString("dd/MM/yyyy", culture) : $"{start:dd/MM/yyyy} al {end:dd/MM/yyyy}";
+                        col.Item().Text($"Periodo Analizado: {rangoFechas}").FontSize(11).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
+                        col.Item().PaddingVertical(5).LineHorizontal(1).LineColor(QuestPDF.Helpers.Colors.Grey.Lighten2);
+                    });
+
+                    // Cuerpo del Reporte
+                    page.Content().PaddingVertical(10).Column(col =>
+                    {
+                        // 1. Tarjetas de KPIs
+                        col.Item().Row(row =>
+                        {
+                            row.Spacing(10); // Espacio horizontal entre las tarjetas
+
+                            row.RelativeItem().Background(QuestPDF.Helpers.Colors.Blue.Lighten5).Padding(10).Column(c => {
+                                c.Item().Text("Venta Total").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
+                                c.Item().Text(totalVentas.ToString("C2", culture)).FontSize(14).Bold().FontColor(QuestPDF.Helpers.Colors.Blue.Darken2);
+                            });
+
+                            row.RelativeItem().Background(QuestPDF.Helpers.Colors.Green.Lighten5).Padding(10).Column(c => {
+                                c.Item().Text("Ganancia Bruta").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
+                                c.Item().Text(totalGanancia.ToString("C2", culture)).FontSize(14).Bold().FontColor(QuestPDF.Helpers.Colors.Green.Darken2);
+                            });
+
+                            row.RelativeItem().Background(QuestPDF.Helpers.Colors.Red.Lighten5).Padding(10).Column(c => {
+                                c.Item().Text("Gastos / Salidas").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
+                                c.Item().Text(totalGastos.ToString("C2", culture)).FontSize(14).Bold().FontColor(QuestPDF.Helpers.Colors.Red.Darken2);
+                            });
+
+                            row.RelativeItem().Background(QuestPDF.Helpers.Colors.Grey.Lighten4).Padding(10).Column(c => {
+                                c.Item().Text("Balance Neto").FontSize(10).FontColor(QuestPDF.Helpers.Colors.Grey.Darken2);
+                                c.Item().Text(balanceNeto.ToString("C2", culture)).FontSize(14).Bold().FontColor(QuestPDF.Helpers.Colors.Black);
+                            });
+                        });
+
+                        // 2. Gráfica Renderizada
+                        if (chartImage != null)
+                        {
+                            col.Item().PaddingTop(15).Text("ANÁLISIS VISUAL").SemiBold().FontSize(12).FontColor(QuestPDF.Helpers.Colors.Grey.Darken3);
+                            col.Item().PaddingTop(5).Height(240).Image(chartImage);
+                        }
+
+                        // 3. Tabla de Cortes de Caja
+                        if (cortes.Any())
+                        {
+                            col.Item().PaddingTop(20).Text("CORTES DE CAJA (TURNOS) DEL PERIODO").SemiBold().FontSize(12).FontColor(QuestPDF.Helpers.Colors.Grey.Darken3);
+                            col.Item().PaddingTop(5).Table(table =>
+                            {
+                                table.ColumnsDefinition(c => { c.ConstantColumn(50); c.RelativeColumn(); c.ConstantColumn(80); c.ConstantColumn(80); c.ConstantColumn(80); });
+                                table.Header(h =>
+                                {
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("ID").SemiBold();
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("Fecha de Cierre").SemiBold();
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("Esperado").SemiBold().AlignRight();
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("Contado").SemiBold().AlignRight();
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("Diferencia").SemiBold().AlignRight();
+                                });
+
+                                foreach (var c in cortes.OrderBy(x => x.FechaHora))
+                                {
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(3).Text(c.Id.ToString());
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(3).Text(c.FechaHora.ToString("dd/MM/yyyy hh:mm tt", culture));
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(3).Text(c.TotalEsperado.ToString("C2", culture)).AlignRight();
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(3).Text(c.TotalContado.ToString("C2", culture)).AlignRight();
+
+                                    var diffColor = c.Diferencia == 0 ? QuestPDF.Helpers.Colors.Green.Darken2 : (c.Diferencia > 0 ? QuestPDF.Helpers.Colors.Orange.Darken2 : QuestPDF.Helpers.Colors.Red.Darken2);
+                                    var diffText = c.Diferencia == 0 ? "Exacto" : c.Diferencia.ToString("C2", culture);
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(3).Text(diffText).FontColor(diffColor).Bold().AlignRight();
+                                }
+                            });
+                        }
+
+                        // 4. Tabla Top 10 Productos
+                        if (topList.Any())
+                        {
+                            col.Item().PaddingTop(20).Text("TOP 10 PRODUCTOS CON MAYOR INGRESO").SemiBold().FontSize(12).FontColor(QuestPDF.Helpers.Colors.Grey.Darken3);
+                            col.Item().PaddingTop(5).Table(table =>
+                            {
+                                table.ColumnsDefinition(c => { c.ConstantColumn(30); c.RelativeColumn(); c.ConstantColumn(60); c.ConstantColumn(80); });
+                                table.Header(h =>
+                                {
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("#").SemiBold();
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("Producto").SemiBold();
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("Cant.").SemiBold().AlignRight();
+                                    h.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten2).Text("Ingreso").SemiBold().AlignRight();
+                                });
+
+                                int pos = 1;
+                                foreach (var p in topList)
+                                {
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(2).Text(pos++.ToString());
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(2).Text(p.Key);
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(2).Text(p.Value.Qty.ToString()).AlignRight();
+                                    table.Cell().BorderBottom(1).BorderColor(QuestPDF.Helpers.Colors.Grey.Lighten4).PaddingVertical(2).Text(p.Value.Ingreso.ToString("C2", culture)).AlignRight();
+                                }
+                            });
+                        }
+                    });
+
+                    // Pie de página
+                    page.Footer().AlignCenter().Text(x =>
+                    {
+                        x.Span("Generado el: " + DateTime.Now.ToString("dd/MM/yyyy hh:mm tt", culture) + "  |  Página ");
+                        x.CurrentPageNumber();
+                        x.Span(" de ");
+                        x.TotalPages();
+                    });
+                });
+            }).GeneratePdf(filePath);
+        }
+        private byte[] CapturarControlWpf(FrameworkElement control)
+        {
             try
             {
-                Reportes.ReporteDiarioPdf.GenerarYabrir(corte, movimientos, rutaLogo, imagenGrafica, rutaPdf);
+                if (control.ActualWidth == 0 || control.ActualHeight == 0) return null;
+
+                // Renderizamos el control de WPF a un Bitmap
+                var rtb = new System.Windows.Media.Imaging.RenderTargetBitmap(
+                    (int)control.ActualWidth, (int)control.ActualHeight + 10, 96, 96, System.Windows.Media.PixelFormats.Pbgra32);
+                rtb.Render(control);
+
+                var encoder = new System.Windows.Media.Imaging.PngBitmapEncoder();
+                encoder.Frames.Add(System.Windows.Media.Imaging.BitmapFrame.Create(rtb));
+
+                using var ms = new System.IO.MemoryStream();
+                encoder.Save(ms);
+                return ms.ToArray();
             }
-            catch (Exception ex)
+            catch
             {
-                MessageBox.Show($"Error al generar el PDF: {ex.Message}", "Error", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
             }
         }
         private void CargarTablaCortes(List<CorteCaja> cortes)
@@ -390,11 +616,10 @@ namespace Punto_de_Venta
             {
                 var dif = c.Diferencia;
                 string difTexto; Brush bgBrush; Brush fgBrush;
-                if (dif == 0m) { difTexto = "$0.00 Exacto"; bgBrush = new SolidColorBrush(Color.FromArgb(30, 52, 199, 89)); fgBrush = new SolidColorBrush(Color.FromRgb(40, 160, 70)); }
-                else if (dif > 0m) { difTexto = $"+{dif.ToString("C2", _mexicanCulture)} Sobrante"; bgBrush = new SolidColorBrush(Color.FromArgb(30, 255, 149, 0)); fgBrush = new SolidColorBrush(Color.FromRgb(215, 120, 0)); }
-                else { difTexto = $"{dif.ToString("C2", _mexicanCulture)} Faltante"; bgBrush = new SolidColorBrush(Color.FromArgb(30, 255, 59, 48)); fgBrush = new SolidColorBrush(Color.FromRgb(215, 40, 30)); }
+                if (dif == 0m) { difTexto = "$0.00 Exacto"; bgBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(30, 52, 199, 89)); fgBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(40, 160, 70)); }
+                else if (dif > 0m) { difTexto = $"+{dif.ToString("C2", _mexicanCulture)} Sobrante"; bgBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(30, 255, 149, 0)); fgBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(215, 120, 0)); }
+                else { difTexto = $"{dif.ToString("C2", _mexicanCulture)} Faltante"; bgBrush = new SolidColorBrush(System.Windows.Media.Color.FromArgb(30, 255, 59, 48)); fgBrush = new SolidColorBrush(System.Windows.Media.Color.FromRgb(215, 40, 30)); }
 
-                // AQUÍ ESTÁ EL CAMBIO: Pasamos c.Id en lugar de c.FechaHora al principio
                 CortesAuditoria.Add(new CorteAuditoriaItem(c.Id, c.FechaHora.ToString("dd/MM/yyyy h:mm tt", CultureInfo.InvariantCulture), $"Turno #{c.Id}", c.TotalEsperado.ToString("C2", _mexicanCulture), c.TotalContado.ToString("C2", _mexicanCulture), difTexto, bgBrush, fgBrush));
             }
         }
@@ -427,7 +652,6 @@ namespace Punto_de_Venta
         {
             MovimientosDelTurnoList.Clear();
 
-            // Filtramos directamente por el ID del turno exacto
             var movimientos = _movimientos
                 .Where(m => m.CorteCajaId == turnoId)
                 .OrderBy(m => m.FechaHora)
@@ -474,7 +698,6 @@ namespace Punto_de_Venta
     }
 
     public sealed record TopProductoItem(int Posicion, string Nombre, int Cantidad, decimal Ingreso);
-    // Cambiamos TurnoId por FechaCorte
     public sealed record CorteAuditoriaItem(int TurnoId, string FechaHoraFormateada, string FolioTexto, string EsperadoFormateado, string ContadoFormateado, string DiferenciaFormateada, Brush BadgeBackground, Brush BadgeForeground);
     #endregion
 }

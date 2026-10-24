@@ -1,5 +1,6 @@
 ﻿using Punto_de_Venta.Datos;
 using Punto_de_Venta.Modelos;
+using Punto_de_Venta.Vistas;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
@@ -14,7 +15,7 @@ using System.Windows.Shapes;
 
 namespace Punto_de_Venta
 {
-    public partial class CodigosBarrasWindow : Window
+    public partial class CodigosBarrasWindow : UserControl
     {
         private List<Producto> _catalogo = new();
         public ObservableCollection<Producto> ResultadosBusqueda { get; set; } = new();
@@ -29,7 +30,21 @@ namespace Punto_de_Venta
             PrintQueueGrid.ItemsSource = ColaImpresion;
         }
 
-        private void Window_Loaded(object sender, RoutedEventArgs e)
+        private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+        {
+            if (this.Visibility == Visibility.Visible)
+            {
+                this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+                {
+                    this.Focus();
+                    Keyboard.Focus(SearchBox);
+                    SearchBox?.Focus();
+                    SearchBox?.SelectAll();
+                }));
+            }
+        }
+
+        private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
             try
             {
@@ -37,21 +52,39 @@ namespace Punto_de_Venta
             }
             catch
             {
-                MessageBox.Show("Error al cargar el catálogo de productos.");
+                CustomMessageBox.Show("Error al cargar el catálogo de productos.");
             }
-            SearchBox.Focus();
         }
 
         private void ModernTitleBar_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
         {
-            DragMove();
+            var window = Window.GetWindow(this);
+            if (window != null && e.LeftButton == MouseButtonState.Pressed)
+            {
+                window.DragMove();
+            }
         }
 
-        private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
-
-        private void Window_PreviewKeyDown(object sender, KeyEventArgs e)
+        private void BtnClose_Click(object sender, RoutedEventArgs e)
         {
-            if (e.Key == Key.Escape) Close();
+            this.Visibility = Visibility.Collapsed;
+            if (Application.Current.MainWindow is MainWindow mainWindow)
+            {
+                mainWindow.RegresarAlMenu();
+            }
+        }
+
+        private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Escape)
+            {
+                this.Visibility = Visibility.Collapsed;
+                if (Application.Current.MainWindow is MainWindow mainWindow)
+                {
+                    mainWindow.RegresarAlMenu();
+                }
+                e.Handled = true;
+            }
         }
 
         private void SearchBox_TextChanged(object sender, TextChangedEventArgs e)
@@ -88,7 +121,7 @@ namespace Punto_de_Venta
             {
                 if (string.IsNullOrWhiteSpace(prod.Codigo) || prod.Codigo.Length < 2)
                 {
-                    MessageBox.Show("Este producto no tiene un código de barras válido asignado.", "Código Inválido", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    CustomMessageBox.Show("Este producto no tiene un código de barras válido asignado.", "Código Inválido", MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
 
@@ -125,7 +158,7 @@ namespace Punto_de_Venta
         {
             if (ColaImpresion.Count == 0)
             {
-                MessageBox.Show("Agrega al menos un producto a la cola de impresión.", "Aviso");
+                CustomMessageBox.Show("Agrega al menos un producto a la cola de impresión.", "Aviso");
                 return;
             }
 
@@ -259,7 +292,7 @@ namespace Punto_de_Venta
         {
             if (_documentoActual == null)
             {
-                MessageBox.Show("Primero genera la plantilla antes de imprimir.", "Aviso");
+                CustomMessageBox.Show("Primero genera la plantilla antes de imprimir.", "Aviso");
                 return;
             }
 

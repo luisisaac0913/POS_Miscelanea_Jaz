@@ -291,7 +291,7 @@
                         </Grid.ColumnDefinitions>
 
                         <StackPanel Orientation="Vertical" VerticalAlignment="Center">
-                            <TextBlock Text="Esto es una prueba 2 averquetal
+                            <TextBlock Text="Miscelanea
 " FontFamily="Segoe UI Variable, Segoe UI, -apple-system" FontSize="42" FontWeight="ExtraBold" Foreground="{DynamicResource ThemeTextForeground}" />
                         </StackPanel>
 

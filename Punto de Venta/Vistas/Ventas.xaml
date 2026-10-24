@@ -44,23 +44,15 @@
             </Setter>
         </Style>
 
-        <Style x:Key="AppleStatPillStyle" TargetType="Border">
-            <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
-            <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
-            <Setter Property="BorderThickness" Value="1" />
-            <Setter Property="CornerRadius" Value="14" />
-            <Setter Property="Height" Value="46" />
-            <Setter Property="Padding" Value="16,0" />
-        </Style>
-
+        <!-- Botones secundarios redondeados -->
         <Style x:Key="ApplePillButtonStyle" TargetType="Button">
             <Setter Property="Height" Value="46" />
             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
-            <Setter Property="Foreground" Value="{DynamicResource ThemeAccent}" />
+            <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
             <Setter Property="BorderBrush" Value="{DynamicResource ThemeBorder}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, -apple-system" />
-            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontSize" Value="13" />
             <Setter Property="FontWeight" Value="SemiBold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="18,0" />
@@ -68,7 +60,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="PillBorder" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="14">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -84,12 +76,12 @@
         </Style>
 
         <Style x:Key="AppleDangerButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="60" />
+            <Setter Property="Height" Value="52" />
             <Setter Property="Background" Value="#FEE2E2" />
             <Setter Property="Foreground" Value="#DC2626" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, -apple-system" />
-            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="20,0" />
@@ -117,12 +109,12 @@
         </Style>
 
         <Style x:Key="ApplePrimaryActionButtonStyle" TargetType="Button">
-            <Setter Property="Height" Value="60" />
+            <Setter Property="Height" Value="52" />
             <Setter Property="Background" Value="{DynamicResource ThemeAccent}" />
             <Setter Property="Foreground" Value="#FFFFFF" />
             <Setter Property="BorderThickness" Value="0" />
             <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI, -apple-system" />
-            <Setter Property="FontSize" Value="15" />
+            <Setter Property="FontSize" Value="14" />
             <Setter Property="FontWeight" Value="Bold" />
             <Setter Property="Cursor" Value="Hand" />
             <Setter Property="Padding" Value="24,0" />
@@ -146,14 +138,6 @@
                 </Setter.Value>
             </Setter>
         </Style>
-        <Style TargetType="DatePickerTextBox">
-            <Setter Property="Foreground" Value="{DynamicResource ThemeTextForeground}" />
-            <Setter Property="Background" Value="Transparent" />
-            <Setter Property="BorderThickness" Value="0" />
-            <Setter Property="FontFamily" Value="Segoe UI Variable, Segoe UI" />
-            <Setter Property="FontSize" Value="13" />
-            <Setter Property="VerticalContentAlignment" Value="Center"/>
-        </Style>
     </UserControl.Resources>
 
     <Border Background="Transparent" ClipToBounds="True">
@@ -167,6 +151,7 @@
 
             <Image Source="/Imagenes/Logo.png" HorizontalAlignment="Center" VerticalAlignment="Center" Stretch="Uniform" Width="450" Opacity="0.12" IsHitTestVisible="False" Panel.ZIndex="0" Grid.RowSpan="4" />
 
+            <!-- Encabezado -->
             <Grid Grid.Row="0" Margin="0,0,0,16">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -178,6 +163,9 @@
                 </StackPanel>
 
                 <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                    <!-- Botón Exportar -->
+                    <Button Content="📥 Exportar Excel (F8)" Style="{StaticResource ApplePillButtonStyle}" Margin="0,0,12,0" Height="36" Padding="12,0" Foreground="{DynamicResource ThemeAccent}" Click="ExportButton_Click" ToolTip="Descargar historial filtrado en archivo Excel/CSV" />
+
                     <Border Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Padding="3" Margin="0,0,12,0">
                         <StackPanel Orientation="Horizontal">
                             <Button x:Name="BtnPeriodoDia" Content="Día" Style="{StaticResource PeriodSegmentButtonStyle}" Click="BtnPeriodo_Click" Tag="Dia" />
@@ -199,25 +187,24 @@
                 </StackPanel>
             </Grid>
 
+            <!-- Buscador -->
             <Border Grid.Row="1" Height="44" Background="{DynamicResource ThemeInputBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="12" Margin="0,0,0,16" Padding="14,0">
                 <Grid VerticalAlignment="Center">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="Auto" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-
                     <TextBlock Grid.Column="0" Text="🔍" FontSize="13" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" Margin="0,0,10,0" />
-
                     <Grid Grid.Column="1">
                         <TextBox x:Name="SearchBox" Background="Transparent" BorderThickness="0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" Foreground="{DynamicResource ThemeTextForeground}" VerticalContentAlignment="Center" TextChanged="SearchBox_TextChanged" AutomationProperties.Name="Buscar venta por ID, fecha o productos" />
-                        <TextBlock x:Name="SearchPlaceholder" Text="Buscar venta por ID, fecha o productos..." FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" IsHitTestVisible="False" />
+                        <TextBlock x:Name="SearchPlaceholder" Text="Buscar venta por ID, producto o fecha (ej. 24/10/2026)..." FontFamily="Segoe UI Variable, Segoe UI" FontSize="15" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" IsHitTestVisible="False" />
                     </Grid>
                 </Grid>
             </Border>
 
+            <!-- Tabla de Ventas -->
             <Border Grid.Row="2" Style="{StaticResource AppleCardStyle}" Padding="0" ClipToBounds="True">
-                <DataGrid x:Name="SalesGrid" ItemsSource="{Binding SalesView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource ThemeBorder}" BorderThickness="0" Background="Transparent" SelectionUnit="FullRow" SelectionMode="Single" SelectionChanged="SalesGrid_SelectionChanged" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" RowHeight="54" EnableRowVirtualization="True" ScrollViewer.VerticalScrollBarVisibility="Auto">
-
+                <DataGrid x:Name="SalesGrid" ItemsSource="{Binding SalesView}" AutoGenerateColumns="False" IsReadOnly="True" CanUserAddRows="False" CanUserDeleteRows="False" CanUserReorderColumns="False" CanUserResizeRows="False" HeadersVisibility="Column" GridLinesVisibility="Horizontal" HorizontalGridLinesBrush="{DynamicResource ThemeBorder}" BorderThickness="0" Background="Transparent" SelectionUnit="FullRow" SelectionMode="Single" SelectionChanged="SalesGrid_SelectionChanged" MouseDoubleClick="SalesGrid_MouseDoubleClick" FontFamily="Segoe UI Variable, Segoe UI" FontSize="14" RowHeight="54" EnableRowVirtualization="True" ScrollViewer.VerticalScrollBarVisibility="Auto">
                     <DataGrid.ColumnHeaderStyle>
                         <Style TargetType="DataGridColumnHeader">
                             <Setter Property="Background" Value="{DynamicResource ThemeInputBackground}" />
@@ -230,7 +217,6 @@
                             <Setter Property="BorderThickness" Value="0,0,0,1" />
                         </Style>
                     </DataGrid.ColumnHeaderStyle>
-
                     <DataGrid.CellStyle>
                         <Style TargetType="DataGridCell">
                             <Setter Property="Background" Value="Transparent" />
@@ -249,7 +235,6 @@
                             </Setter>
                         </Style>
                     </DataGrid.CellStyle>
-
                     <DataGrid.RowStyle>
                         <Style TargetType="DataGridRow">
                             <Setter Property="Background" Value="{DynamicResource ThemeSurfaceBackground}" />
@@ -278,7 +263,6 @@
                             </Style.Triggers>
                         </Style>
                     </DataGrid.RowStyle>
-
                     <DataGrid.Columns>
                         <DataGridTemplateColumn Header="ESTADO" Width="120">
                             <DataGridTemplateColumn.CellTemplate>
@@ -319,9 +303,6 @@
                         </DataGridTextColumn>
                         <DataGridTextColumn Header="PRODUCTOS" Binding="{Binding ProductosResumen}" Width="2.1*" />
                         <DataGridTextColumn Header="CANTIDAD" Binding="{Binding CantidadTotal}" Width="0.65*" />
-                        <DataGridTextColumn Header="PAGO CON" Binding="{Binding PagoCon, StringFormat={}{0:C2}}" Width="0.8*" />
-                        <DataGridTextColumn Header="CAMBIO" Binding="{Binding Cambio, StringFormat={}{0:C2}}" Width="0.8*" />
-                        <DataGridTextColumn Header="FECHA" Binding="{Binding FechaHora, StringFormat={}{0:dd/MM/yyyy hh:mm tt}}" Width="1.35*" />
                         <DataGridTextColumn Header="TOTAL" Binding="{Binding Total, StringFormat={}{0:C2}}" Width="0.85*">
                             <DataGridTextColumn.ElementStyle>
                                 <Style TargetType="TextBlock">
@@ -330,11 +311,12 @@
                                 </Style>
                             </DataGridTextColumn.ElementStyle>
                         </DataGridTextColumn>
+                        <DataGridTextColumn Header="FECHA" Binding="{Binding FechaHora, StringFormat={}{0:dd/MM/yyyy hh:mm tt}}" Width="1.35*" />
                     </DataGrid.Columns>
                 </DataGrid>
             </Border>
 
-            <!-- 3. Barra Inferior iOS: Métricas Dinámicas y Botones -->
+            <!-- 3. Dashboard Inferior y Botones de Acción -->
             <Grid Grid.Row="3" Margin="0,18,0,0">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
@@ -342,59 +324,68 @@
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
 
-                <!-- Izquierda: Cuadrícula de Métricas Escalonable -->
-                <Viewbox Grid.Column="0" StretchDirection="DownOnly" HorizontalAlignment="Left">
-                    <Grid VerticalAlignment="Center">
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto" />
-                            <RowDefinition Height="10" />
-                            <RowDefinition Height="Auto" />
-                        </Grid.RowDefinitions>
+                <!-- Izquierda: Dashboard de Métricas -->
+                <Border Grid.Column="0" Background="{DynamicResource ThemeSurfaceBackground}" BorderBrush="{DynamicResource ThemeBorder}" BorderThickness="1" CornerRadius="16" Padding="16,10" Effect="{StaticResource AppleCardShadow}">
+                    <Grid>
                         <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
-                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
                             <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
                         </Grid.ColumnDefinitions>
 
-                        <Button Grid.Row="0" Grid.Column="0" Content="Ver Detalles de Venta" Style="{StaticResource ApplePillButtonStyle}" MinWidth="180" Click="ViewDetailsButton_Click" />
+                        <!-- Ventas -->
+                        <StackPanel Grid.Column="0" VerticalAlignment="Center" Margin="5,0">
+                            <TextBlock Text="Ventas Brutas" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" />
+                            <TextBlock x:Name="TotalSalesTodayText" Text="$0.00" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
+                        </StackPanel>
 
-                        <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource AppleStatPillStyle}" MinWidth="170">
-                            <TextBlock x:Name="TotalSalesTodayText" Text="Total de ventas: $0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
-                        </Border>
+                        <Border Grid.Column="1" Width="1" Background="{DynamicResource ThemeBorder}" Margin="5,5" />
 
-                        <Border Grid.Row="0" Grid.Column="4" Style="{StaticResource AppleStatPillStyle}" MinWidth="150">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="Gastos: " FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeMutedForeground}" />
-                                <TextBlock x:Name="MetricGastosText" Text="$0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="Bold" Foreground="#EF4444" />
-                            </StackPanel>
-                        </Border>
+                        <!-- Ganancia -->
+                        <StackPanel Grid.Column="2" VerticalAlignment="Center" Margin="5,0">
+                            <TextBlock Text="Ganancia Neta" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" />
+                            <TextBlock x:Name="TotalProfitText" Text="$0.00" FontSize="18" FontWeight="Bold" Foreground="#10B981" />
+                        </StackPanel>
 
-                        <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource AppleStatPillStyle}" MinWidth="180">
-                            <TextBlock x:Name="TotalProfitText" Text="Ganancia: $0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="#10B981" VerticalAlignment="Center" />
-                        </Border>
+                        <Border Grid.Column="3" Width="1" Background="{DynamicResource ThemeBorder}" Margin="5,5" />
 
-                        <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource AppleStatPillStyle}" MinWidth="170">
-                            <TextBlock x:Name="TotalProductsSoldText" Text="Prod. vendidos: 0" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeMutedForeground}" VerticalAlignment="Center" />
-                        </Border>
+                        <!-- Artículos -->
+                        <StackPanel Grid.Column="4" VerticalAlignment="Center" Margin="5,0">
+                            <TextBlock Text="Art. Vendidos" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" />
+                            <TextBlock x:Name="TotalProductsSoldText" Text="0 pzas" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource ThemeAccent}" />
+                        </StackPanel>
 
-                        <Border Grid.Row="2" Grid.Column="4" Style="{StaticResource AppleStatPillStyle}" MinWidth="150">
-                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                <TextBlock Text="Balance: " FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="SemiBold" Foreground="{DynamicResource ThemeMutedForeground}" />
-                                <TextBlock x:Name="MetricBalanceText" Text="$0.00" FontFamily="Segoe UI Variable, Segoe UI" FontSize="13" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
-                            </StackPanel>
-                        </Border>
+                        <Border Grid.Column="5" Width="1" Background="{DynamicResource ThemeBorder}" Margin="5,5" />
+
+                        <!-- Gastos -->
+                        <StackPanel Grid.Column="6" VerticalAlignment="Center" Margin="5,0">
+                            <TextBlock Text="Salidas / Gastos" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" />
+                            <TextBlock x:Name="MetricGastosText" Text="$0.00" FontSize="18" FontWeight="Bold" Foreground="#EF4444" />
+                        </StackPanel>
+
+                        <Border Grid.Column="7" Width="1" Background="{DynamicResource ThemeBorder}" Margin="5,5" />
+
+                        <!-- Balance Total -->
+                        <StackPanel Grid.Column="8" VerticalAlignment="Center" Margin="5,0">
+                            <TextBlock Text="Balance en Caja" FontSize="12" Foreground="{DynamicResource ThemeMutedForeground}" />
+                            <TextBlock x:Name="MetricBalanceText" Text="$0.00" FontSize="18" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
+                        </StackPanel>
                     </Grid>
-                </Viewbox>
+                </Border>
 
-                <!-- Derecha: Botones de Acción Escalonables -->
-                <Viewbox Grid.Column="2" StretchDirection="DownOnly" HorizontalAlignment="Right">
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <Button x:Name="ReturnButton" Content="DEVOLUCIÓN" Style="{StaticResource AppleDangerButtonStyle}" MinWidth="130" Margin="0,0,10,0" IsEnabled="False" Click="ReturnButton_Click" />
-                        <Button Content="CIERRE DE CAJA" Style="{StaticResource ApplePrimaryActionButtonStyle}" MinWidth="160" Click="CashCloseButton_Click" />
-                    </StackPanel>
-                </Viewbox>
+                <!-- Derecha: Botones de Acción Operativa -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                    <Button Content="🖨️ REIMPRIMIR (F7)" Style="{StaticResource ApplePillButtonStyle}" Margin="0,0,10,0" Height="52" Padding="14,0" IsEnabled="{Binding ElementName=ReturnButton, Path=IsEnabled}" Click="ReprintTicketButton_Click" ToolTip="Imprimir copia del ticket de la venta seleccionada" />
+                    <Button Content="📄 DETALLES" Style="{StaticResource ApplePillButtonStyle}" Margin="0,0,10,0" Height="52" Padding="14,0" IsEnabled="{Binding ElementName=ReturnButton, Path=IsEnabled}" Click="ViewDetailsButton_Click" ToolTip="Ver qué se vendió (Doble clic en la tabla)" />
+                    <Button x:Name="ReturnButton" Content="DEVOLUCIÓN" Style="{StaticResource AppleDangerButtonStyle}" MinWidth="130" Margin="0,0,10,0" IsEnabled="False" Click="ReturnButton_Click" ToolTip="Cancelar venta y retornar mercancía" />
+                    <Button Content="CERRAR CAJA" Style="{StaticResource ApplePrimaryActionButtonStyle}" MinWidth="150" Click="CashCloseButton_Click" ToolTip="Hacer corte ciego de caja" />
+                </StackPanel>
             </Grid>
         </Grid>
     </Border>

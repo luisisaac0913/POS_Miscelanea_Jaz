@@ -107,8 +107,7 @@
 
                     <!-- Nuevo Título Interno (Reemplaza a la vieja barra de ventana) -->
                     <StackPanel Grid.Column="0" Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center">
-                        <TextBlock Text="Gráficas y Reportes" FontFamily="Segoe UI Variable, Segoe UI, -apple-system" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
-                        <TextBlock Text="Presiona ESC para volver" Foreground="{DynamicResource ThemeMutedForeground}" FontSize="13" VerticalAlignment="Center" Margin="16,0,0,0" />
+                        <TextBlock Text="Graficas" FontFamily="Segoe UI Variable, Segoe UI, -apple-system" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
                     </StackPanel>
 
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">

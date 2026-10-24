@@ -55,8 +55,7 @@
 
             <!-- Título interno limpio (Reemplaza a la vieja barra de ventana) -->
             <Grid Grid.Row="0" Margin="0,0,0,16">
-                <TextBlock Text="Generador de Códigos de Barras y Etiquetas" FontFamily="Segoe UI Variable, Segoe UI, -apple-system" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
-                <TextBlock Text="Presiona ESC para volver" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource ThemeMutedForeground}" FontSize="13" />
+                <TextBlock Text="Etiquetas" FontFamily="Segoe UI Variable, Segoe UI, -apple-system" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" VerticalAlignment="Center" />
             </Grid>
 
             <!-- Contenido principal dividido en 2 columnas -->

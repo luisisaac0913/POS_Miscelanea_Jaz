@@ -27,6 +27,9 @@ namespace Punto_de_Venta
         private bool _isUpdatingForm;
         private string _currentStockFilter = "All";
 
+        public ObservableCollection<LoteRestock> Lotes { get; } = new();
+        public ObservableCollection<LoteItem> NuevoLoteItems { get; } = new();
+
         public ObservableCollection<Producto> Products { get; } = [];
         public ICollectionView ProductsView { get; }
         #endregion
@@ -57,19 +60,25 @@ namespace Punto_de_Venta
             SetNextId();
             UpdateSelectionActions();
 
-            // Reloj
+            try
+            {
+                foreach (var lote in LoteDB.Load())
+                {
+                    Lotes.Add(lote);
+                }
+            }
+            catch { }
+
             _clockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
             _clockTimer.Tick += (_, _) => ClockText.Text = DateTime.Now.ToString("h:mm tt", CultureInfo.GetCultureInfo("en-US"));
             _clockTimer.Start();
 
-            // Reemplazo del evento Closed de Window por Unloaded de UserControl
             Unloaded += (_, _) =>
             {
                 _clockTimer.Stop();
                 _searchDebounceTimer.Stop();
             };
 
-            // Optimización de Búsqueda: Debounce Timer
             _searchDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
             _searchDebounceTimer.Tick += (_, _) =>
             {
@@ -77,6 +86,7 @@ namespace Punto_de_Venta
                 ProductsView.Refresh();
             };
         }
+
         private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (this.Visibility == Visibility.Visible)
@@ -88,7 +98,7 @@ namespace Punto_de_Venta
         }
         private void UserControl_Loaded(object sender, RoutedEventArgs e)
         {
-            FocusCodeBox();
+            FocusSearch();
         }
         #endregion
 
@@ -100,6 +110,20 @@ namespace Punto_de_Venta
                 if (QuickRestockOverlay.Visibility == Visibility.Visible)
                 {
                     CloseQuickRestock_Click(null, null);
+                    e.Handled = true;
+                    return;
+                }
+
+                if (GestorLotesOverlay.Visibility == Visibility.Visible)
+                {
+                    CloseGestorLotes_Click(null, null);
+                    e.Handled = true;
+                    return;
+                }
+
+                if (LotesOverlay.Visibility == Visibility.Visible)
+                {
+                    CloseLotesModal_Click(null, null);
                     e.Handled = true;
                     return;
                 }
@@ -132,9 +156,209 @@ namespace Punto_de_Venta
             }
             if (e.Key == Key.F && (Keyboard.Modifiers & ModifierKeys.Control) == ModifierKeys.Control)
             {
-                FocusSearch();
+                FocusCodeBox();
                 e.Handled = true;
                 return;
+            }
+        }
+        #endregion
+
+        #region Módulos de Lotes (Uso y Creación)
+
+        // ================= USO DE LOTES =================
+        private void OpenLotesModal_Click(object sender, RoutedEventArgs e)
+        {
+            LotesListBox.SelectedItem = null;
+            LoteItemsBox.ItemsSource = null;
+            LotesOverlay.Visibility = Visibility.Visible;
+        }
+
+        private void CloseLotesModal_Click(object sender, RoutedEventArgs e)
+        {
+            LotesOverlay.Visibility = Visibility.Collapsed;
+            FocusCodeBox();
+        }
+
+        private void LotesListBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (LotesListBox.SelectedItem is LoteRestock lote)
+            {
+                LoteItemsBox.ItemsSource = lote.Articulos;
+            }
+        }
+
+        private void ApplyLote_Click(object sender, RoutedEventArgs e)
+        {
+            if (LotesListBox.SelectedItem is not LoteRestock lote)
+            {
+                ToastNotification.Show("Selecciona un lote de la lista primero.", ToastType.Warning);
+                return;
+            }
+
+            if (!CanWrite()) return;
+
+            int productosActualizados = 0;
+
+            foreach (var item in lote.Articulos)
+            {
+                var productoBD = Products.FirstOrDefault(p =>
+                    string.Equals(p.Codigo, item.Codigo, StringComparison.OrdinalIgnoreCase) ||
+                    p.Id.ToString(CultureInfo.InvariantCulture) == item.Codigo);
+
+                if (productoBD != null)
+                {
+                    productoBD.Stock += item.Cantidad;
+                    productosActualizados++;
+                }
+            }
+
+            if (productosActualizados > 0)
+            {
+                if (TrySave(Products))
+                {
+                    ProductsView.Refresh();
+                    ToastNotification.Show($"Lote ingresado. Se actualizó el stock de {productosActualizados} artículos.", ToastType.Success);
+                    CloseLotesModal_Click(null, null);
+                }
+            }
+            else
+            {
+                ToastNotification.Show("No se encontró ningún artículo de este lote en tu catálogo actual.", ToastType.Warning);
+            }
+        }
+
+        // ================= GESTIÓN / CREACIÓN DE LOTES =================
+        private void OpenGestorLotes_Click(object sender, RoutedEventArgs e)
+        {
+            NuevoLoteNombreBox.Clear();
+            NuevoLoteProveedorBox.Clear();
+            GestorLoteCodigoBox.Clear();
+            GestorLoteCantidadBox.Text = "1";
+            GestorLoteProductoEncontrado.Text = "Esperando código...";
+            NuevoLoteItems.Clear();
+
+            GestorLotesOverlay.Visibility = Visibility.Visible;
+
+            this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+            {
+                NuevoLoteNombreBox.Focus();
+            }));
+        }
+
+        private void CloseGestorLotes_Click(object sender, RoutedEventArgs e)
+        {
+            GestorLotesOverlay.Visibility = Visibility.Collapsed;
+        }
+
+        private void NuevoLoteNombreBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                NuevoLoteProveedorBox.Focus();
+                e.Handled = true;
+            }
+        }
+
+        private void NuevoLoteProveedorBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                GestorLoteCodigoBox.Focus();
+                e.Handled = true;
+            }
+        }
+
+        private void GestorLoteCodigoBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key != Key.Enter) return;
+
+            var code = GestorLoteCodigoBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(code)) return;
+
+            var prod = Products.FirstOrDefault(p =>
+                string.Equals(p.Codigo, code, StringComparison.OrdinalIgnoreCase) ||
+                p.Id.ToString(CultureInfo.InvariantCulture) == code);
+
+            if (prod != null)
+            {
+                GestorLoteProductoEncontrado.Text = $"✅ {prod.Nombre}";
+                GestorLoteCantidadBox.Focus();
+                GestorLoteCantidadBox.SelectAll();
+            }
+            else
+            {
+                GestorLoteProductoEncontrado.Text = "⚠️ Producto no encontrado.";
+                GestorLoteCodigoBox.SelectAll();
+            }
+            e.Handled = true;
+        }
+
+        private void GestorLoteCantidadBox_KeyDown(object sender, KeyEventArgs e)
+        {
+            if (e.Key == Key.Enter)
+            {
+                ProcesarIngresoAlLote();
+                e.Handled = true;
+            }
+        }
+
+        private void AddProductToNewLote_Click(object sender, RoutedEventArgs e)
+        {
+            ProcesarIngresoAlLote();
+        }
+
+        private void ProcesarIngresoAlLote()
+        {
+            var code = GestorLoteCodigoBox.Text.Trim();
+            var prod = Products.FirstOrDefault(p => string.Equals(p.Codigo, code, StringComparison.OrdinalIgnoreCase) || p.Id.ToString() == code);
+
+            if (prod == null)
+            {
+                ToastNotification.Show("Busca un producto válido antes de añadirlo.", ToastType.Warning);
+                return;
+            }
+
+            if (!int.TryParse(GestorLoteCantidadBox.Text.Trim(), out var qty) || qty <= 0)
+            {
+                ToastNotification.Show("Ingresa una cantidad válida mayor a 0.", ToastType.Warning);
+                return;
+            }
+
+            NuevoLoteItems.Add(new LoteItem { Codigo = code, Nombre = prod.Nombre, Cantidad = qty });
+
+            GestorLoteCodigoBox.Clear();
+            GestorLoteCantidadBox.Text = "1";
+            GestorLoteProductoEncontrado.Text = "Esperando código...";
+            GestorLoteCodigoBox.Focus();
+        }
+
+        private void SaveNewLote_Click(object sender, RoutedEventArgs e)
+        {
+            var nombre = NuevoLoteNombreBox.Text.Trim();
+            if (string.IsNullOrWhiteSpace(nombre) || NuevoLoteItems.Count == 0)
+            {
+                ToastNotification.Show("El lote debe tener un nombre y al menos 1 producto.", ToastType.Warning);
+                return;
+            }
+
+            var nuevoLote = new LoteRestock
+            {
+                Nombre = nombre,
+                Proveedor = NuevoLoteProveedorBox.Text.Trim(),
+                Articulos = NuevoLoteItems.ToList()
+            };
+
+            Lotes.Add(nuevoLote);
+
+            try
+            {
+                LoteDB.Save(Lotes);
+                ToastNotification.Show($"Lote '{nombre}' guardado con éxito.", ToastType.Success);
+                CloseGestorLotes_Click(null, null);
+            }
+            catch (Exception ex)
+            {
+                ToastNotification.Show($"Error al guardar: {ex.Message}", ToastType.Error);
             }
         }
         #endregion
@@ -210,9 +434,11 @@ namespace Punto_de_Venta
         #region Búsqueda y Filtros
         private void FocusSearch()
         {
-            SearchBox.Focus();
-            Keyboard.Focus(SearchBox);
-            SearchBox.SelectAll();
+            this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+            {
+                ProductCodeBox.Focus();
+                Keyboard.Focus(ProductCodeBox);
+            }));
         }
 
         private void FilterStock_Click(object sender, RoutedEventArgs e)
@@ -456,7 +682,6 @@ namespace Punto_de_Venta
 
             var productToDelete = _selectedProduct;
 
-            // 1. Alertamos usando el MainWindow como dueño de la ventana (para evitar el error de UserControl)
             var window = Window.GetWindow(this) ?? Application.Current.MainWindow;
             var confirm = CustomMessageBox.Show(window,
                 $"¿Seguro que deseas eliminar '{productToDelete.Nombre}' del inventario?",
@@ -471,10 +696,8 @@ namespace Punto_de_Venta
 
             try
             {
-                // 2. Ordenamos a la base de datos que borre específicamente este ID
                 Punto_de_Venta.Datos.ProductoDB.Delete(productToDelete.Id);
 
-                // 3. Lo quitamos de la memoria visual
                 Products.Remove(productToDelete);
                 ClearSelectionAndForm();
                 UpdateProductCount();
@@ -680,7 +903,7 @@ namespace Punto_de_Venta
         }
 
         private void UpdateProductCount() =>
-            ProductCountText.Text = $"Cantidad de prod: {Products.Count}";
+            CantProd.Text = $"Cantidad de prod: {Products.Count}";
 
         private int GetNextId() => checked(Products.Select(product => product.Id).DefaultIfEmpty(0).Max() + 1);
 

@@ -1,13 +1,16 @@
-using HarfBuzzSharp;
 using Punto_de_Venta.Datos;
 using Punto_de_Venta.Modelos;
+using Punto_de_Venta.Servicios;
 using Punto_de_Venta.Vistas;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Globalization;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows;
 using System.Windows.Controls;
@@ -72,6 +75,7 @@ namespace Punto_de_Venta
         }
 
         private void CargarMovimientosCaja() { try { _movimientos = MovimientoCajaDB.Load() ?? []; } catch { _movimientos = []; } }
+
         private void UserControl_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
         {
             if (this.Visibility == Visibility.Visible)
@@ -80,6 +84,7 @@ namespace Punto_de_Venta
                 Keyboard.Focus(this);
             }
         }
+
         public void BtnPeriodo_Click(object sender, RoutedEventArgs e)
         {
             if (sender is Button btn && btn.Tag is string periodo)
@@ -157,9 +162,9 @@ namespace Punto_de_Venta
             var totalGastos = _movimientos.Where(m => m.FechaHora >= _filtroInicio && m.FechaHora <= _filtroFin && (m.Tipo.Equals("Salida", StringComparison.OrdinalIgnoreCase) || m.Tipo.Equals("Gasto", StringComparison.OrdinalIgnoreCase))).Sum(m => m.Monto);
             var balanceNeto = totalVentas - totalGastos;
 
-            TotalSalesTodayText.Text = $"Total ventas: {totalVentas.ToString("C2", culture)}";
-            TotalProfitText.Text = $"Ganancia: {totalProfit.ToString("C2", culture)}";
-            TotalProductsSoldText.Text = $"Prod. vendidos: {totalItems}";
+            TotalSalesTodayText.Text = totalVentas.ToString("C2", culture);
+            TotalProfitText.Text = totalProfit.ToString("C2", culture);
+            TotalProductsSoldText.Text = $"{totalItems} pzas";
             MetricGastosText.Text = totalGastos.ToString("C2", culture);
             MetricBalanceText.Text = balanceNeto.ToString("C2", culture);
         }
@@ -204,14 +209,40 @@ namespace Punto_de_Venta
                 }
                 e.Handled = true;
             }
+            else if (e.Key == Key.F7)
+            {
+                ReprintTicketButton_Click(null, null);
+                e.Handled = true;
+            }
+            else if (e.Key == Key.F8)
+            {
+                ExportButton_Click(null, null);
+                e.Handled = true;
+            }
         }
 
-        private void FocusSearch() { SearchBox.Focus(); Keyboard.Focus(SearchBox); }
+        private void FocusSearch()
+        {
+            this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+            {
+                SearchBox.Focus();
+                Keyboard.Focus(SearchBox);
+            }));
+        }
 
         private void SalesGrid_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             _selectedSale = SalesGrid.SelectedItem as Venta;
             ReturnButton.IsEnabled = !_loadFailed && (_selectedSale?.Estado == "Abierta" || _selectedSale?.Estado == "Fiado");
+        }
+
+        // --- NUEVO: Doble clic para abrir detalles ---
+        private void SalesGrid_MouseDoubleClick(object sender, MouseButtonEventArgs e)
+        {
+            if (_selectedSale != null)
+            {
+                ViewDetailsButton_Click(sender, e);
+            }
         }
 
         private void ViewDetailsButton_Click(object sender, RoutedEventArgs e)
@@ -231,6 +262,98 @@ namespace Punto_de_Venta
             var text = $"Venta #{_selectedSale.Id}\nFecha: {_selectedSale.FechaHora.ToString("dd/MM/yyyy hh:mm tt", CultureInfo.GetCultureInfo("es-MX"))}\nEstado: {_selectedSale.Estado}\n\n{details}\n\nTotal: {_selectedSale.Total.ToString("C2", CultureInfo.GetCultureInfo("es-MX"))}\nGanancia total de esta venta: {profitTotal.ToString("C2", CultureInfo.GetCultureInfo("es-MX"))}";
 
             CustomMessageBox.Show(Application.Current.MainWindow, text, "Datos de venta", MessageBoxButton.OK, MessageBoxImage.Information);
+        }
+
+        // --- NUEVO: Reimpresión de Ticket ---
+        // --- NUEVO: Reimpresión de Ticket ---
+        private void ReprintTicketButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_selectedSale is null)
+            {
+                ToastNotification.Show("Selecciona una venta para reimprimir el comprobante", ToastType.Warning);
+                return;
+            }
+
+            var config = AppConfig.Load();
+            if (string.IsNullOrWhiteSpace(config.ImpresoraSeleccionada))
+            {
+                ToastNotification.Show("No hay una impresora configurada en Ajustes.", ToastType.Warning);
+                return;
+            }
+
+            try
+            {
+                // 1. Generamos el texto pasando los 5 parámetros requeridos
+                // Usamos PagoEfectivo (o PagoCon si lo tienes así en tu modelo Venta)
+                string textoTicket = TicketService.GenerarTextoTicket(
+                    _selectedSale,
+                    _selectedSale.Productos,
+                    _selectedSale.PagoEfectivo > 0 ? _selectedSale.PagoEfectivo : _selectedSale.Total, // Enviamos el monto con el que pagó
+                    _selectedSale.Cambio,
+                    config
+                );
+
+                // 2. Convertimos el string a un arreglo de bytes (ASCII es el estándar para térmicas)
+                byte[] buffer = System.Text.Encoding.ASCII.GetBytes(textoTicket);
+
+                // 3. Enviamos a la impresora
+                bool impreso = RawPrinterHelper.SendBytesToPrinter(config.ImpresoraSeleccionada, buffer);
+
+                if (impreso)
+                    ToastNotification.Show($"🖨️ Copia del Ticket #{_selectedSale.Id} enviada a imprimir.", ToastType.Success);
+                else
+                    ToastNotification.Show("No se pudo conectar con la impresora térmica.", ToastType.Error);
+            }
+            catch (Exception ex)
+            {
+                // Respaldo en caso de error: mostramos los detalles en pantalla
+                ViewDetailsButton_Click(null, null);
+                ToastNotification.Show($"Impresión fallida: {ex.Message}", ToastType.Error);
+            }
+        }
+
+        // --- NUEVO: Exportar a CSV/Excel ---
+        private void ExportButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (SalesView.IsEmpty)
+            {
+                ToastNotification.Show("No hay ventas en este periodo para exportar.", ToastType.Warning);
+                return;
+            }
+
+            var sfd = new SaveFileDialog
+            {
+                Filter = "Archivo CSV (*.csv)|*.csv",
+                FileName = $"ReporteVentas_{_filtroInicio:ddMMyyyy}_al_{_filtroFin:ddMMyyyy}.csv",
+                Title = "Exportar Historial de Ventas"
+            };
+
+            if (sfd.ShowDialog() == true)
+            {
+                try
+                {
+                    StringBuilder sb = new StringBuilder();
+                    sb.AppendLine("ID Venta,Fecha,Estado,Metodo Pago,Articulos,Total,Ganancia Neta,Resumen Productos");
+
+                    foreach (var item in SalesView)
+                    {
+                        if (item is Venta v)
+                        {
+                            var fecha = v.FechaHora.ToString("dd/MM/yyyy HH:mm");
+                            // Limpiar resumen de comas para no romper el CSV
+                            var resumenLimpio = v.ProductosResumen.Replace(",", " | ").Replace("\"", " ");
+                            sb.AppendLine($"{v.Id},{fecha},{v.Estado},{v.MetodoPago},{v.CantidadTotal},{v.Total},{v.GananciaTotal},\"{resumenLimpio}\"");
+                        }
+                    }
+
+                    File.WriteAllText(sfd.FileName, sb.ToString(), Encoding.UTF8);
+                    ToastNotification.Show("✅ Reporte exportado exitosamente.", ToastType.Success);
+                }
+                catch (Exception ex)
+                {
+                    ToastNotification.Show($"Error al exportar: {ex.Message}", ToastType.Error);
+                }
+            }
         }
 
         private void ReturnButton_Click(object sender, RoutedEventArgs e)

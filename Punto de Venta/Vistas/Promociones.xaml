@@ -69,9 +69,8 @@
             <!-- Encabezado de vista -->
             <Grid Grid.Row="0" Margin="32,20,32,0">
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="Promociones y Paquetes" FontFamily="Segoe UI Variable, Segoe UI, -apple-system" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
+                    <TextBlock Text="Promociones" FontFamily="Segoe UI Variable, Segoe UI, -apple-system" FontSize="26" FontWeight="Bold" Foreground="{DynamicResource ThemeTextForeground}" />
                 </StackPanel>
-                <TextBlock Text="Presiona ESC para volver" HorizontalAlignment="Right" VerticalAlignment="Center" Foreground="{DynamicResource ThemeMutedForeground}" FontSize="13" />
             </Grid>
 
             <!-- Cuerpo principal -->

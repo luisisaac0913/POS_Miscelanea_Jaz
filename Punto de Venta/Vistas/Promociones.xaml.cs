@@ -40,6 +40,7 @@ namespace Punto_de_Venta
                 Keyboard.Focus(this);
             }
         }
+        private void UserControl_Loaded(object sender, RoutedEventArgs e) => FocusSearch();
         private void UserControl_PreviewKeyDown(object sender, KeyEventArgs e)
         {
             if (e.Key == Key.Escape)
@@ -98,6 +99,14 @@ namespace Punto_de_Venta
                 return val;
             }
             return 0m;
+        }
+        private void FocusSearch()
+        {
+            this.Dispatcher.BeginInvoke(System.Windows.Threading.DispatcherPriority.Input, new Action(() =>
+            {
+                NombrePromoBox.Focus();
+                Keyboard.Focus(NombrePromoBox);
+            }));
         }
         #endregion
 
